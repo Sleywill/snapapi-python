@@ -1,6 +1,6 @@
 # snapapi
 
-Official Python SDK for [SnapAPI](https://snapapi.dev) - Lightning-fast screenshot API for developers.
+Official Python SDK for [SnapAPI](https://snapapi.pics) - Lightning-fast screenshot API for developers.
 
 ## Installation
 
@@ -158,7 +158,7 @@ if status.status == 'completed':
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `api_key` | str | *required* | Your API key |
-| `base_url` | str | `https://api.snapapi.dev` | API base URL |
+| `base_url` | str | `https://api.snapapi.pics` | API base URL |
 | `timeout` | int | `60` | Request timeout in seconds |
 
 ### Screenshot Options

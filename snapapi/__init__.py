@@ -16,9 +16,11 @@ from .types import (
     BatchOptions,
     BatchResult,
     Cookie,
+    VideoOptions,
+    VideoResult,
 )
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 __all__ = [
     "SnapAPI",
     "SnapAPIError",
@@ -27,4 +29,6 @@ __all__ = [
     "BatchOptions",
     "BatchResult",
     "Cookie",
+    "VideoOptions",
+    "VideoResult",
 ]
