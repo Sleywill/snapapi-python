@@ -230,3 +230,47 @@ result: ScreenshotResult = client.screenshot(
 ## License
 
 MIT
+
+### Extract API
+
+Extract clean content from any webpage - perfect for LLM/RAG workflows.
+
+```python
+# Extract markdown
+result = client.extract_markdown('https://example.com/article')
+print(result['data'])
+
+# Extract article with metadata
+article = client.extract_article('https://blog.example.com')
+print(article['data']['title'])
+print(article['data']['content'])
+
+# Extract structured data for LLM
+structured = client.extract_structured('https://example.com')
+print(structured['data']['wordCount'])
+print(structured['data']['content'])
+
+# Extract all links
+links = client.extract_links('https://example.com')
+for link in links['data']:
+    print(link['text'], link['href'])
+
+# Extract all images
+images = client.extract_images('https://example.com')
+for img in images['data']:
+    print(img['src'], img['alt'])
+
+# Extract page metadata
+meta = client.extract_metadata('https://example.com')
+print(meta['data']['ogTitle'], meta['data']['ogImage'])
+
+# Generic extract with options
+result = client.extract(
+    url='https://example.com',
+    type='text',
+    block_ads=True,
+    max_length=5000
+)
+```
+
+Available extract types: `markdown`, `text`, `html`, `article`, `structured`, `links`, `images`, `metadata`

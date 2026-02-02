@@ -529,6 +529,94 @@ class SnapAPI:
         response = self._request("GET", "/v1/usage")
         return UsageResult.from_dict(json.loads(response))
 
+    def extract(
+        self,
+        url: str,
+        type: str = "markdown",
+        selector: Optional[str] = None,
+        wait_for: Optional[str] = None,
+        timeout: Optional[int] = None,
+        dark_mode: bool = False,
+        block_ads: bool = False,
+        block_cookie_banners: bool = False,
+        max_length: Optional[int] = None,
+        clean_output: bool = True,
+    ) -> Dict[str, Any]:
+        """
+        Extract content from a webpage.
+
+        Args:
+            url: URL to extract content from
+            type: Extraction type: 'markdown', 'text', 'html', 'article',
+                  'structured', 'links', 'images', 'metadata'
+            selector: CSS selector to extract from specific element
+            wait_for: Wait for selector before extracting
+            timeout: Request timeout in ms
+            dark_mode: Enable dark mode
+            block_ads: Block advertisements
+            block_cookie_banners: Block cookie consent banners
+            max_length: Maximum output length in characters
+            clean_output: Clean and format output
+
+        Returns:
+            Dict with success, type, url, data, and responseTime
+
+        Example:
+            >>> result = client.extract(
+            ...     url='https://example.com/article',
+            ...     type='markdown'
+            ... )
+            >>> print(result['data'])
+        """
+        data = {
+            "url": url,
+            "type": type,
+            "darkMode": dark_mode,
+            "blockAds": block_ads,
+            "blockCookieBanners": block_cookie_banners,
+            "cleanOutput": clean_output,
+        }
+
+        if selector:
+            data["selector"] = selector
+        if wait_for:
+            data["waitFor"] = wait_for
+        if timeout:
+            data["timeout"] = timeout
+        if max_length:
+            data["maxLength"] = max_length
+
+        response = self._request("POST", "/v1/extract", data)
+        return json.loads(response)
+
+    def extract_markdown(self, url: str, **kwargs) -> Dict[str, Any]:
+        """Extract markdown from a webpage."""
+        return self.extract(url, type="markdown", **kwargs)
+
+    def extract_article(self, url: str, **kwargs) -> Dict[str, Any]:
+        """Extract article content (title, byline, content) from a webpage."""
+        return self.extract(url, type="article", **kwargs)
+
+    def extract_structured(self, url: str, **kwargs) -> Dict[str, Any]:
+        """Extract structured data for LLM/RAG workflows."""
+        return self.extract(url, type="structured", **kwargs)
+
+    def extract_text(self, url: str, **kwargs) -> Dict[str, Any]:
+        """Extract plain text from a webpage."""
+        return self.extract(url, type="text", **kwargs)
+
+    def extract_links(self, url: str, **kwargs) -> Dict[str, Any]:
+        """Extract all links from a webpage."""
+        return self.extract(url, type="links", **kwargs)
+
+    def extract_images(self, url: str, **kwargs) -> Dict[str, Any]:
+        """Extract all images from a webpage."""
+        return self.extract(url, type="images", **kwargs)
+
+    def extract_metadata(self, url: str, **kwargs) -> Dict[str, Any]:
+        """Extract page metadata (title, OG tags, etc.) from a webpage."""
+        return self.extract(url, type="metadata", **kwargs)
+
     def _request(
         self,
         method: str,
