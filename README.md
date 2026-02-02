@@ -5,7 +5,7 @@ Official Python SDK for [SnapAPI](https://snapapi.pics) - Lightning-fast screens
 ## Installation
 
 ```bash
-pip install snapapi
+pip install git+https://github.com/Sleywill/snapapi-python
 ```
 
 ## Quick Start
