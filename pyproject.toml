@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "snapapi"
-version = "1.1.0"
+version = "1.2.0"
 description = "Official Python SDK for SnapAPI - Lightning-fast screenshot API"
 readme = "README.md"
 license = {text = "MIT"}
@@ -39,7 +39,7 @@ classifiers = [
 
 [project.urls]
 Homepage = "https://snapapi.pics"
-Documentation = "https://snapapi.pics/docs.html"
+Documentation = "https://snapapi.pics/docs"
 Repository = "https://github.com/Sleywill/snapapi-python"
 Issues = "https://github.com/Sleywill/snapapi-python/issues"
 

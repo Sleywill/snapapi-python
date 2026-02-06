@@ -190,7 +190,8 @@ class ScreenshotOptions:
     """Options for screenshot capture."""
     url: Optional[str] = None
     html: Optional[str] = None
-    format: Literal["png", "jpeg", "webp", "pdf"] = "png"
+    markdown: Optional[str] = None
+    format: Literal["png", "jpeg", "webp", "avif", "pdf"] = "png"
     quality: Optional[int] = None
     device: Optional[DevicePreset] = None
     width: int = 1280
@@ -252,6 +253,8 @@ class ScreenshotOptions:
             result["url"] = self.url
         if self.html:
             result["html"] = self.html
+        if self.markdown:
+            result["markdown"] = self.markdown
         result["format"] = self.format
         if self.quality is not None:
             result["quality"] = self.quality
@@ -547,7 +550,7 @@ class VideoResult:
 class BatchOptions:
     """Options for batch screenshot capture."""
     urls: List[str]
-    format: Literal["png", "jpeg", "webp", "pdf"] = "png"
+    format: Literal["png", "jpeg", "webp", "avif", "pdf"] = "png"
     quality: Optional[int] = None
     width: int = 1280
     height: int = 800
@@ -707,4 +710,159 @@ class UsageResult:
             limit=data.get("limit", 0),
             remaining=data.get("remaining", 0),
             reset_at=data.get("resetAt", ""),
+        )
+
+
+# Extract type
+ExtractType = Literal[
+    "markdown", "text", "html", "article", "structured",
+    "links", "images", "metadata",
+]
+
+
+@dataclass
+class ExtractOptions:
+    """Options for content extraction."""
+    url: str
+    type: ExtractType = "markdown"
+    selector: Optional[str] = None
+    wait_for: Optional[str] = None
+    timeout: Optional[int] = None
+    dark_mode: bool = False
+    block_ads: bool = False
+    block_cookie_banners: bool = False
+    include_images: Optional[bool] = None
+    max_length: Optional[int] = None
+    clean_output: Optional[bool] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for API request."""
+        result: Dict[str, Any] = {
+            "url": self.url,
+            "type": self.type,
+        }
+        if self.selector:
+            result["selector"] = self.selector
+        if self.wait_for:
+            result["waitFor"] = self.wait_for
+        if self.timeout is not None:
+            result["timeout"] = self.timeout
+        if self.dark_mode:
+            result["darkMode"] = True
+        if self.block_ads:
+            result["blockAds"] = True
+        if self.block_cookie_banners:
+            result["blockCookieBanners"] = True
+        if self.include_images is not None:
+            result["includeImages"] = self.include_images
+        if self.max_length is not None:
+            result["maxLength"] = self.max_length
+        if self.clean_output is not None:
+            result["cleanOutput"] = self.clean_output
+        return result
+
+
+@dataclass
+class ExtractResult:
+    """Result of a content extraction."""
+    success: bool
+    type: str
+    content: Optional[Any] = None
+    url: Optional[str] = None
+    title: Optional[str] = None
+    took: Optional[int] = None
+    cached: bool = False
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "ExtractResult":
+        """Create from API response dictionary."""
+        return cls(
+            success=data.get("success", False),
+            type=data.get("type", ""),
+            content=data.get("content"),
+            url=data.get("url"),
+            title=data.get("title"),
+            took=data.get("took"),
+            cached=data.get("cached", False),
+        )
+
+
+# Analyze provider type
+AnalyzeProvider = Literal["openai", "anthropic"]
+
+
+@dataclass
+class AnalyzeOptions:
+    """Options for AI-powered page analysis."""
+    url: str
+    prompt: str
+    provider: Optional[AnalyzeProvider] = None
+    api_key: Optional[str] = None
+    model: Optional[str] = None
+    json_schema: Optional[Dict[str, Any]] = None
+    timeout: Optional[int] = None
+    wait_for: Optional[str] = None
+    block_ads: bool = False
+    block_cookie_banners: bool = False
+    include_screenshot: Optional[bool] = None
+    include_metadata: Optional[bool] = None
+    max_content_length: Optional[int] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for API request."""
+        result: Dict[str, Any] = {
+            "url": self.url,
+            "prompt": self.prompt,
+        }
+        if self.provider:
+            result["provider"] = self.provider
+        if self.api_key:
+            result["apiKey"] = self.api_key
+        if self.model:
+            result["model"] = self.model
+        if self.json_schema is not None:
+            result["jsonSchema"] = self.json_schema
+        if self.timeout is not None:
+            result["timeout"] = self.timeout
+        if self.wait_for:
+            result["waitFor"] = self.wait_for
+        if self.block_ads:
+            result["blockAds"] = True
+        if self.block_cookie_banners:
+            result["blockCookieBanners"] = True
+        if self.include_screenshot is not None:
+            result["includeScreenshot"] = self.include_screenshot
+        if self.include_metadata is not None:
+            result["includeMetadata"] = self.include_metadata
+        if self.max_content_length is not None:
+            result["maxContentLength"] = self.max_content_length
+        return result
+
+
+@dataclass
+class AnalyzeResult:
+    """Result of an AI-powered page analysis."""
+    success: bool
+    result: Optional[Any] = None
+    url: Optional[str] = None
+    model: Optional[str] = None
+    provider: Optional[str] = None
+    took: Optional[int] = None
+    tokens_used: Optional[int] = None
+    screenshot: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "AnalyzeResult":
+        """Create from API response dictionary."""
+        return cls(
+            success=data.get("success", False),
+            result=data.get("result"),
+            url=data.get("url"),
+            model=data.get("model"),
+            provider=data.get("provider"),
+            took=data.get("took"),
+            tokens_used=data.get("tokensUsed"),
+            screenshot=data.get("screenshot"),
+            metadata=data.get("metadata"),
         )

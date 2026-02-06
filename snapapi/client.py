@@ -26,6 +26,12 @@ from .types import (
     VideoOptions,
     VideoResult,
     ScrollEasing,
+    ExtractOptions,
+    ExtractResult,
+    ExtractType,
+    AnalyzeOptions,
+    AnalyzeResult,
+    AnalyzeProvider,
 )
 
 
@@ -88,6 +94,7 @@ class SnapAPI:
         self,
         url: Optional[str] = None,
         html: Optional[str] = None,
+        markdown: Optional[str] = None,
         format: str = "png",
         quality: Optional[int] = None,
         device: Optional[DevicePreset] = None,
@@ -139,12 +146,13 @@ class SnapAPI:
         extract_metadata: Optional[ExtractMetadata] = None,
     ) -> Union[bytes, ScreenshotResult]:
         """
-        Capture a screenshot of the specified URL or HTML content.
+        Capture a screenshot of the specified URL, HTML, or Markdown content.
 
         Args:
-            url: URL to capture (required if no html)
-            html: HTML content to render (required if no url)
-            format: Output format ('png', 'jpeg', 'webp', 'pdf')
+            url: URL to capture (required if no html/markdown)
+            html: HTML content to render (required if no url/markdown)
+            markdown: Markdown content to render (required if no url/html)
+            format: Output format ('png', 'jpeg', 'webp', 'avif', 'pdf')
             quality: Image quality 1-100 (JPEG/WebP only)
             device: Device preset name (e.g., 'iphone-15-pro')
             width: Viewport width (100-3840)
@@ -195,12 +203,13 @@ class SnapAPI:
         Returns:
             bytes if response_type is 'binary', ScreenshotResult otherwise
         """
-        if not url and not html:
-            raise ValueError("Either url or html is required")
+        if not url and not html and not markdown:
+            raise ValueError("Either url, html, or markdown is required")
 
         options = ScreenshotOptions(
             url=url,
             html=html,
+            markdown=markdown,
             format=format,
             quality=quality,
             device=device,
@@ -291,6 +300,21 @@ class SnapAPI:
             bytes if response_type is 'binary', ScreenshotResult otherwise
         """
         return self.screenshot(url=url, device=device, **kwargs)
+
+    def screenshot_from_markdown(
+        self, markdown: str, **kwargs
+    ) -> Union[bytes, ScreenshotResult]:
+        """
+        Capture a screenshot from Markdown content.
+
+        Args:
+            markdown: Markdown content to render
+            **kwargs: Additional screenshot options
+
+        Returns:
+            bytes if response_type is 'binary', ScreenshotResult otherwise
+        """
+        return self.screenshot(markdown=markdown, **kwargs)
 
     def pdf(
         self,
@@ -499,6 +523,221 @@ class SnapAPI:
         response = self._request("GET", f"/v1/screenshot/batch/{job_id}")
         return BatchResult.from_dict(json.loads(response))
 
+    def extract(
+        self,
+        url: str,
+        type: ExtractType = "markdown",
+        selector: Optional[str] = None,
+        wait_for: Optional[str] = None,
+        timeout: Optional[int] = None,
+        dark_mode: bool = False,
+        block_ads: bool = False,
+        block_cookie_banners: bool = False,
+        include_images: Optional[bool] = None,
+        max_length: Optional[int] = None,
+        clean_output: Optional[bool] = None,
+    ) -> ExtractResult:
+        """
+        Extract content from a web page.
+
+        Args:
+            url: URL to extract content from
+            type: Extraction type ('markdown', 'text', 'html', 'article',
+                  'structured', 'links', 'images', 'metadata')
+            selector: CSS selector to scope extraction
+            wait_for: CSS selector to wait for before extracting
+            timeout: Max wait time in ms
+            dark_mode: Emulate dark mode
+            block_ads: Block ads
+            block_cookie_banners: Hide cookie consent banners
+            include_images: Include images in extracted content
+            max_length: Maximum content length
+            clean_output: Clean and simplify the extracted content
+
+        Returns:
+            ExtractResult with extracted content
+
+        Example:
+            >>> result = client.extract(
+            ...     url='https://example.com',
+            ...     type='markdown',
+            ...     block_ads=True
+            ... )
+            >>> print(result.content)
+        """
+        options = ExtractOptions(
+            url=url,
+            type=type,
+            selector=selector,
+            wait_for=wait_for,
+            timeout=timeout,
+            dark_mode=dark_mode,
+            block_ads=block_ads,
+            block_cookie_banners=block_cookie_banners,
+            include_images=include_images,
+            max_length=max_length,
+            clean_output=clean_output,
+        )
+
+        response = self._request("POST", "/v1/extract", options.to_dict())
+        return ExtractResult.from_dict(json.loads(response))
+
+    def extract_markdown(self, url: str, **kwargs) -> ExtractResult:
+        """
+        Extract page content as Markdown.
+
+        Args:
+            url: URL to extract content from
+            **kwargs: Additional extract options
+
+        Returns:
+            ExtractResult with Markdown content
+        """
+        return self.extract(url=url, type="markdown", **kwargs)
+
+    def extract_article(self, url: str, **kwargs) -> ExtractResult:
+        """
+        Extract the main article content from a page.
+
+        Args:
+            url: URL to extract article from
+            **kwargs: Additional extract options
+
+        Returns:
+            ExtractResult with article content
+        """
+        return self.extract(url=url, type="article", **kwargs)
+
+    def extract_structured(self, url: str, **kwargs) -> ExtractResult:
+        """
+        Extract structured data from a page.
+
+        Args:
+            url: URL to extract structured data from
+            **kwargs: Additional extract options
+
+        Returns:
+            ExtractResult with structured data
+        """
+        return self.extract(url=url, type="structured", **kwargs)
+
+    def extract_text(self, url: str, **kwargs) -> ExtractResult:
+        """
+        Extract plain text content from a page.
+
+        Args:
+            url: URL to extract text from
+            **kwargs: Additional extract options
+
+        Returns:
+            ExtractResult with text content
+        """
+        return self.extract(url=url, type="text", **kwargs)
+
+    def extract_links(self, url: str, **kwargs) -> ExtractResult:
+        """
+        Extract all links from a page.
+
+        Args:
+            url: URL to extract links from
+            **kwargs: Additional extract options
+
+        Returns:
+            ExtractResult with links
+        """
+        return self.extract(url=url, type="links", **kwargs)
+
+    def extract_images(self, url: str, **kwargs) -> ExtractResult:
+        """
+        Extract all images from a page.
+
+        Args:
+            url: URL to extract images from
+            **kwargs: Additional extract options
+
+        Returns:
+            ExtractResult with images
+        """
+        return self.extract(url=url, type="images", **kwargs)
+
+    def extract_metadata(self, url: str, **kwargs) -> ExtractResult:
+        """
+        Extract metadata from a page.
+
+        Args:
+            url: URL to extract metadata from
+            **kwargs: Additional extract options
+
+        Returns:
+            ExtractResult with page metadata
+        """
+        return self.extract(url=url, type="metadata", **kwargs)
+
+    def analyze(
+        self,
+        url: str,
+        prompt: str,
+        provider: Optional[AnalyzeProvider] = None,
+        api_key: Optional[str] = None,
+        model: Optional[str] = None,
+        json_schema: Optional[Dict[str, Any]] = None,
+        timeout: Optional[int] = None,
+        wait_for: Optional[str] = None,
+        block_ads: bool = False,
+        block_cookie_banners: bool = False,
+        include_screenshot: Optional[bool] = None,
+        include_metadata: Optional[bool] = None,
+        max_content_length: Optional[int] = None,
+    ) -> AnalyzeResult:
+        """
+        Analyze a web page using AI.
+
+        Args:
+            url: URL to analyze
+            prompt: Analysis prompt/question
+            provider: AI provider ('openai' or 'anthropic')
+            api_key: Provider API key
+            model: Model to use (e.g., 'gpt-4o', 'claude-sonnet-4-20250514')
+            json_schema: JSON schema for structured output
+            timeout: Max wait time in ms
+            wait_for: CSS selector to wait for before analyzing
+            block_ads: Block ads
+            block_cookie_banners: Hide cookie consent banners
+            include_screenshot: Include a screenshot in the response
+            include_metadata: Include page metadata in the response
+            max_content_length: Maximum content length to send to AI
+
+        Returns:
+            AnalyzeResult with AI analysis
+
+        Example:
+            >>> result = client.analyze(
+            ...     url='https://example.com',
+            ...     prompt='Summarize the main content of this page',
+            ...     provider='openai',
+            ...     api_key='sk-...'
+            ... )
+            >>> print(result.result)
+        """
+        options = AnalyzeOptions(
+            url=url,
+            prompt=prompt,
+            provider=provider,
+            api_key=api_key,
+            model=model,
+            json_schema=json_schema,
+            timeout=timeout,
+            wait_for=wait_for,
+            block_ads=block_ads,
+            block_cookie_banners=block_cookie_banners,
+            include_screenshot=include_screenshot,
+            include_metadata=include_metadata,
+            max_content_length=max_content_length,
+        )
+
+        response = self._request("POST", "/v1/analyze", options.to_dict())
+        return AnalyzeResult.from_dict(json.loads(response))
+
     def get_devices(self) -> DevicesResult:
         """
         Get available device presets.
@@ -529,94 +768,6 @@ class SnapAPI:
         response = self._request("GET", "/v1/usage")
         return UsageResult.from_dict(json.loads(response))
 
-    def extract(
-        self,
-        url: str,
-        type: str = "markdown",
-        selector: Optional[str] = None,
-        wait_for: Optional[str] = None,
-        timeout: Optional[int] = None,
-        dark_mode: bool = False,
-        block_ads: bool = False,
-        block_cookie_banners: bool = False,
-        max_length: Optional[int] = None,
-        clean_output: bool = True,
-    ) -> Dict[str, Any]:
-        """
-        Extract content from a webpage.
-
-        Args:
-            url: URL to extract content from
-            type: Extraction type: 'markdown', 'text', 'html', 'article',
-                  'structured', 'links', 'images', 'metadata'
-            selector: CSS selector to extract from specific element
-            wait_for: Wait for selector before extracting
-            timeout: Request timeout in ms
-            dark_mode: Enable dark mode
-            block_ads: Block advertisements
-            block_cookie_banners: Block cookie consent banners
-            max_length: Maximum output length in characters
-            clean_output: Clean and format output
-
-        Returns:
-            Dict with success, type, url, data, and responseTime
-
-        Example:
-            >>> result = client.extract(
-            ...     url='https://example.com/article',
-            ...     type='markdown'
-            ... )
-            >>> print(result['data'])
-        """
-        data = {
-            "url": url,
-            "type": type,
-            "darkMode": dark_mode,
-            "blockAds": block_ads,
-            "blockCookieBanners": block_cookie_banners,
-            "cleanOutput": clean_output,
-        }
-
-        if selector:
-            data["selector"] = selector
-        if wait_for:
-            data["waitFor"] = wait_for
-        if timeout:
-            data["timeout"] = timeout
-        if max_length:
-            data["maxLength"] = max_length
-
-        response = self._request("POST", "/v1/extract", data)
-        return json.loads(response)
-
-    def extract_markdown(self, url: str, **kwargs) -> Dict[str, Any]:
-        """Extract markdown from a webpage."""
-        return self.extract(url, type="markdown", **kwargs)
-
-    def extract_article(self, url: str, **kwargs) -> Dict[str, Any]:
-        """Extract article content (title, byline, content) from a webpage."""
-        return self.extract(url, type="article", **kwargs)
-
-    def extract_structured(self, url: str, **kwargs) -> Dict[str, Any]:
-        """Extract structured data for LLM/RAG workflows."""
-        return self.extract(url, type="structured", **kwargs)
-
-    def extract_text(self, url: str, **kwargs) -> Dict[str, Any]:
-        """Extract plain text from a webpage."""
-        return self.extract(url, type="text", **kwargs)
-
-    def extract_links(self, url: str, **kwargs) -> Dict[str, Any]:
-        """Extract all links from a webpage."""
-        return self.extract(url, type="links", **kwargs)
-
-    def extract_images(self, url: str, **kwargs) -> Dict[str, Any]:
-        """Extract all images from a webpage."""
-        return self.extract(url, type="images", **kwargs)
-
-    def extract_metadata(self, url: str, **kwargs) -> Dict[str, Any]:
-        """Extract page metadata (title, OG tags, etc.) from a webpage."""
-        return self.extract(url, type="metadata", **kwargs)
-
     def _request(
         self,
         method: str,
@@ -629,7 +780,7 @@ class SnapAPI:
         headers = {
             "X-Api-Key": self.api_key,
             "Content-Type": "application/json",
-            "User-Agent": "snapapi-python/1.1.0",
+            "User-Agent": "snapapi-python/1.2.0",
         }
 
         body = None

@@ -5,7 +5,7 @@ Official Python SDK for [SnapAPI](https://snapapi.pics) - Lightning-fast screens
 ## Installation
 
 ```bash
-pip install git+https://github.com/Sleywill/snapapi-python
+pip install snapapi
 ```
 
 ## Quick Start
@@ -151,6 +151,122 @@ if status.status == 'completed':
     print(status.results)
 ```
 
+### Screenshot from Markdown
+
+```python
+# Render Markdown content as a screenshot
+screenshot = client.screenshot_from_markdown(
+    markdown='# Hello World\n\nThis is **bold** text.',
+    width=800,
+    height=600
+)
+
+with open('markdown.png', 'wb') as f:
+    f.write(screenshot)
+
+# Or use the screenshot method directly
+screenshot = client.screenshot(
+    markdown='## My Document\n\n- Item 1\n- Item 2',
+    format='png'
+)
+```
+
+### Extract Content
+
+Extract structured content from any web page.
+
+```python
+# Extract as Markdown
+result = client.extract_markdown(url='https://example.com')
+print(result.content)
+
+# Extract article content
+result = client.extract_article(url='https://blog.example.com/post')
+print(result.content)
+
+# Extract plain text
+result = client.extract_text(url='https://example.com')
+print(result.content)
+
+# Extract structured data
+result = client.extract_structured(url='https://example.com')
+print(result.content)
+
+# Extract all links
+result = client.extract_links(url='https://example.com')
+print(result.content)
+
+# Extract all images
+result = client.extract_images(url='https://example.com')
+print(result.content)
+
+# Extract page metadata
+result = client.extract_metadata(url='https://example.com')
+print(result.content)
+
+# Full control with the extract method
+result = client.extract(
+    url='https://example.com',
+    type='markdown',
+    selector='article',
+    block_ads=True,
+    block_cookie_banners=True,
+    clean_output=True
+)
+```
+
+### Analyze with AI
+
+Use AI to analyze web page content.
+
+```python
+# Analyze a page with a prompt
+result = client.analyze(
+    url='https://example.com',
+    prompt='Summarize the main content of this page',
+    provider='openai',
+    api_key='sk-...'
+)
+print(result.result)
+
+# Get structured JSON output
+result = client.analyze(
+    url='https://example.com/products',
+    prompt='Extract all product names and prices',
+    provider='openai',
+    api_key='sk-...',
+    json_schema={
+        'type': 'object',
+        'properties': {
+            'products': {
+                'type': 'array',
+                'items': {
+                    'type': 'object',
+                    'properties': {
+                        'name': {'type': 'string'},
+                        'price': {'type': 'number'}
+                    }
+                }
+            }
+        }
+    }
+)
+print(result.result)
+
+# Include screenshot and metadata
+result = client.analyze(
+    url='https://example.com',
+    prompt='Describe the visual layout of this page',
+    provider='anthropic',
+    api_key='sk-ant-...',
+    include_screenshot=True,
+    include_metadata=True
+)
+print(result.result)
+print(result.screenshot)  # base64 encoded screenshot
+print(result.metadata)    # page metadata dict
+```
+
 ## Configuration Options
 
 ### Client Options
@@ -166,7 +282,7 @@ if status.status == 'completed':
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `url` | str | *required* | URL to capture |
-| `format` | str | `'png'` | `'png'`, `'jpeg'`, `'webp'`, `'pdf'` |
+| `format` | str | `'png'` | `'png'`, `'jpeg'`, `'webp'`, `'avif'`, `'pdf'` |
 | `width` | int | `1920` | Viewport width (100-3840) |
 | `height` | int | `1080` | Viewport height (100-2160) |
 | `full_page` | bool | `False` | Capture full scrollable page |
@@ -230,47 +346,3 @@ result: ScreenshotResult = client.screenshot(
 ## License
 
 MIT
-
-### Extract API
-
-Extract clean content from any webpage - perfect for LLM/RAG workflows.
-
-```python
-# Extract markdown
-result = client.extract_markdown('https://example.com/article')
-print(result['data'])
-
-# Extract article with metadata
-article = client.extract_article('https://blog.example.com')
-print(article['data']['title'])
-print(article['data']['content'])
-
-# Extract structured data for LLM
-structured = client.extract_structured('https://example.com')
-print(structured['data']['wordCount'])
-print(structured['data']['content'])
-
-# Extract all links
-links = client.extract_links('https://example.com')
-for link in links['data']:
-    print(link['text'], link['href'])
-
-# Extract all images
-images = client.extract_images('https://example.com')
-for img in images['data']:
-    print(img['src'], img['alt'])
-
-# Extract page metadata
-meta = client.extract_metadata('https://example.com')
-print(meta['data']['ogTitle'], meta['data']['ogImage'])
-
-# Generic extract with options
-result = client.extract(
-    url='https://example.com',
-    type='text',
-    block_ads=True,
-    max_length=5000
-)
-```
-
-Available extract types: `markdown`, `text`, `html`, `article`, `structured`, `links`, `images`, `metadata`
