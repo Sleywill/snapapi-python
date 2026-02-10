@@ -43,12 +43,12 @@ class SnapAPIError(Exception):
         message: str,
         code: str = "UNKNOWN_ERROR",
         status_code: int = 500,
-        details: Optional[Dict[str, Any]] = None,
+        details: Optional[Any] = None,
     ):
         super().__init__(message)
         self.code = code
         self.status_code = status_code
-        self.details = details or {}
+        self.details = details
 
     def __str__(self) -> str:
         return f"[{self.code}] {super().__str__()}"
@@ -806,13 +806,26 @@ class SnapAPI:
         try:
             body = json.loads(error.read().decode("utf-8"))
             error_data = body.get("error", {})
+
+            # Handle flat error format: {statusCode, error, message, details}
+            # The API returns "error" as a string (e.g., "Unauthorized"),
+            # not a nested object.
+            if isinstance(error_data, str):
+                raise SnapAPIError(
+                    message=body.get("message", f"HTTP {error.code}"),
+                    code=error_data.replace(" ", "_").upper(),
+                    status_code=error.code,
+                    details=body.get("details"),
+                )
+
+            # Handle nested error format: {error: {message, code, details}}
             raise SnapAPIError(
                 message=error_data.get("message", f"HTTP {error.code}"),
                 code=error_data.get("code", "HTTP_ERROR"),
                 status_code=error.code,
                 details=error_data.get("details"),
             )
-        except json.JSONDecodeError:
+        except (json.JSONDecodeError, AttributeError):
             raise SnapAPIError(
                 message=f"HTTP {error.code}: {error.reason}",
                 code="HTTP_ERROR",
