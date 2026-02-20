@@ -353,7 +353,7 @@ class SnapAPI:
         width: int = 1280,
         height: int = 720,
         device: Optional[DevicePreset] = None,
-        duration: int = 5000,
+        duration: int = 5,
         fps: int = 24,
         delay: int = 0,
         timeout: int = 60000,
@@ -386,7 +386,7 @@ class SnapAPI:
             width: Viewport width (100-1920)
             height: Viewport height (100-1080)
             device: Device preset name
-            duration: Video duration in ms (1000-30000)
+            duration: Video duration in seconds (1-30)
             fps: Frames per second (1-30)
             delay: Delay before starting capture (ms)
             timeout: Max wait time in ms
@@ -757,6 +757,68 @@ class SnapAPI:
         """
         response = self._request("GET", "/v1/capabilities")
         return CapabilitiesResult.from_dict(json.loads(response))
+
+    def ping(self) -> Dict[str, Any]:
+        """
+        Ping the API to check if it's alive.
+
+        Returns:
+            Dictionary with ping response
+        """
+        response = self._request("GET", "/v1/ping")
+        return json.loads(response)
+
+    def screenshot_async(
+        self,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        """
+        Capture a screenshot asynchronously.
+
+        Args:
+            **kwargs: Same arguments as screenshot()
+
+        Returns:
+            Dictionary with jobId for polling
+        """
+        if not kwargs.get("url") and not kwargs.get("html") and not kwargs.get("markdown"):
+            raise ValueError("Either url, html, or markdown is required")
+
+        # Build options same as screenshot but add async flag
+        kwargs.setdefault("response_type", "json")
+        options = ScreenshotOptions(
+            url=kwargs.get("url"),
+            html=kwargs.get("html"),
+            markdown=kwargs.get("markdown"),
+            format=kwargs.get("format", "png"),
+            quality=kwargs.get("quality"),
+            width=kwargs.get("width", 1280),
+            height=kwargs.get("height", 800),
+            full_page=kwargs.get("full_page", False),
+            dark_mode=kwargs.get("dark_mode", False),
+            block_ads=kwargs.get("block_ads", False),
+            response_type=kwargs.get("response_type", "json"),
+            include_metadata=kwargs.get("include_metadata", False),
+        )
+
+        payload = options.to_dict()
+        payload["async"] = True
+
+        response = self._request("POST", "/v1/screenshot", payload)
+        return json.loads(response)
+
+    def get_async_status(self, job_id: str) -> Dict[str, Any]:
+        """
+        Check the status of an async screenshot job.
+
+        Args:
+            job_id: The async job ID
+
+        Returns:
+            Dictionary with job status and result
+        """
+        response = self._request("GET", f"/v1/screenshot/async/{job_id}")
+        return json.loads(response)
 
     def get_usage(self) -> UsageResult:
         """

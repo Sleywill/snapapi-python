@@ -439,7 +439,7 @@ class VideoOptions:
     width: int = 1280
     height: int = 720
     device: Optional[DevicePreset] = None
-    duration: int = 5000
+    duration: int = 5
     fps: int = 24
     delay: int = 0
     timeout: int = 60000
