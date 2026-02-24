@@ -721,6 +721,65 @@ ExtractType = Literal[
 
 
 @dataclass
+ScrapeType = Literal["text", "html", "links"]
+
+
+@dataclass
+class ScrapeOptions:
+    """Options for multi-page web scraping."""
+    url: str
+    pages: int = 1
+    type: ScrapeType = "text"
+    wait_ms: Optional[int] = None
+    proxy: Optional[str] = None
+    block_resources: bool = False
+    page_step: Optional[int] = None
+    locale: Optional[str] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for API request."""
+        result: Dict[str, Any] = {
+            "url": self.url,
+            "pages": self.pages,
+            "type": self.type,
+        }
+        if self.wait_ms is not None:
+            result["waitMs"] = self.wait_ms
+        if self.proxy:
+            result["proxy"] = self.proxy
+        if self.block_resources:
+            result["blockResources"] = True
+        if self.page_step is not None:
+            result["pageStep"] = self.page_step
+        if self.locale:
+            result["locale"] = self.locale
+        return result
+
+
+@dataclass
+class ScrapePageResult:
+    """A single scraped page result."""
+    page: int
+    url: str
+    data: str
+
+
+@dataclass
+class ScrapeResult:
+    """Result of a multi-page scrape."""
+    success: bool
+    results: List["ScrapePageResult"]
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "ScrapeResult":
+        """Create from API response dictionary."""
+        results = [
+            ScrapePageResult(page=r["page"], url=r["url"], data=r["data"])
+            for r in data.get("results", [])
+        ]
+        return cls(success=data.get("success", False), results=results)
+
+
 class ExtractOptions:
     """Options for content extraction."""
     url: str
@@ -734,6 +793,10 @@ class ExtractOptions:
     include_images: Optional[bool] = None
     max_length: Optional[int] = None
     clean_output: Optional[bool] = None
+    proxy: Optional[str] = None
+    block_resources: bool = False
+    locale: Optional[str] = None
+    user_agent: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for API request."""
@@ -759,6 +822,14 @@ class ExtractOptions:
             result["maxLength"] = self.max_length
         if self.clean_output is not None:
             result["cleanOutput"] = self.clean_output
+        if self.proxy:
+            result["proxy"] = self.proxy
+        if self.block_resources:
+            result["blockResources"] = True
+        if self.locale:
+            result["locale"] = self.locale
+        if self.user_agent:
+            result["userAgent"] = self.user_agent
         return result
 
 

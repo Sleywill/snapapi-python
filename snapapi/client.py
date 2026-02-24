@@ -29,6 +29,8 @@ from .types import (
     ExtractOptions,
     ExtractResult,
     ExtractType,
+    ScrapeOptions,
+    ScrapeResult,
     AnalyzeOptions,
     AnalyzeResult,
     AnalyzeProvider,
@@ -536,6 +538,10 @@ class SnapAPI:
         include_images: Optional[bool] = None,
         max_length: Optional[int] = None,
         clean_output: Optional[bool] = None,
+        proxy: Optional[str] = None,
+        block_resources: bool = False,
+        locale: Optional[str] = None,
+        user_agent: Optional[str] = None,
     ) -> ExtractResult:
         """
         Extract content from a web page.
@@ -577,6 +583,10 @@ class SnapAPI:
             include_images=include_images,
             max_length=max_length,
             clean_output=clean_output,
+            proxy=proxy,
+            block_resources=block_resources,
+            locale=locale,
+            user_agent=user_agent,
         )
 
         response = self._request("POST", "/v1/extract", options.to_dict())
@@ -672,6 +682,61 @@ class SnapAPI:
             ExtractResult with page metadata
         """
         return self.extract(url=url, type="metadata", **kwargs)
+
+    def scrape(
+        self,
+        url: str,
+        pages: int = 1,
+        type: str = "text",
+        wait_ms: Optional[int] = None,
+        proxy: Optional[str] = None,
+        block_resources: bool = False,
+        page_step: Optional[int] = None,
+        locale: Optional[str] = None,
+    ) -> ScrapeResult:
+        """
+        Scrape content from one or more pages using stealth mode.
+
+        Args:
+            url: URL to scrape
+            pages: Number of pages to scrape (1-10, default 1)
+            type: Content type - 'text', 'html', or 'links' (default 'text')
+            wait_ms: Wait time after page load in ms
+            proxy: Proxy URL e.g. 'http://user:pass@host:port'
+            block_resources: Block images, fonts and media resources
+            page_step: Results per pagination step (default 10 for Bing)
+            locale: Browser locale e.g. 'en-US'
+
+        Returns:
+            ScrapeResult with list of scraped pages
+
+        Example:
+            >>> # Single page scrape
+            >>> result = client.scrape('https://example.com')
+            >>> print(result.results[0].data)
+
+            >>> # Multi-page Bing search with proxy
+            >>> result = client.scrape(
+            ...     url='https://www.bing.com/search?q=screenshot+api',
+            ...     pages=3,
+            ...     proxy='http://user:pass@proxy-host:port'
+            ... )
+            >>> for page in result.results:
+            ...     print(f'Page {page.page}:', page.data[:200])
+        """
+        options = ScrapeOptions(
+            url=url,
+            pages=pages,
+            type=type,
+            wait_ms=wait_ms,
+            proxy=proxy,
+            block_resources=block_resources,
+            page_step=page_step,
+            locale=locale,
+        )
+
+        response = self._request("POST", "/v1/scrape", options.to_dict())
+        return ScrapeResult.from_dict(json.loads(response))
 
     def analyze(
         self,

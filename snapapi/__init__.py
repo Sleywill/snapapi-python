@@ -20,11 +20,14 @@ from .types import (
     VideoResult,
     ExtractOptions,
     ExtractResult,
+    ScrapeOptions,
+    ScrapeResult,
+    ScrapePageResult,
     AnalyzeOptions,
     AnalyzeResult,
 )
 
-__version__ = "1.2.0"
+__version__ = "1.3.0"
 __all__ = [
     "SnapAPI",
     "SnapAPIError",
@@ -37,6 +40,9 @@ __all__ = [
     "VideoResult",
     "ExtractOptions",
     "ExtractResult",
+    "ScrapeOptions",
+    "ScrapeResult",
+    "ScrapePageResult",
     "AnalyzeOptions",
     "AnalyzeResult",
 ]
