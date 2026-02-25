@@ -907,7 +907,7 @@ class SnapAPI:
         headers = {
             "X-Api-Key": self.api_key,
             "Content-Type": "application/json",
-            "User-Agent": "snapapi-python/1.2.0",
+            "User-Agent": "snapapi-python/1.3.1",
         }
 
         body = None
