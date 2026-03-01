@@ -244,6 +244,11 @@ class ScreenshotOptions:
     extract_metadata: Optional[ExtractMetadata] = None
     fail_if_content_missing: Optional[List[str]] = None
     fail_if_content_contains: Optional[List[str]] = None
+    # v2 additions
+    storage: Optional[Dict[str, Any]] = None  # {destination: 'snapapi'|'user_s3', format?}
+    webhook_url: Optional[str] = None         # async delivery
+    job_id: Optional[str] = None              # poll async result
+    premium_proxy: Optional[bool] = None      # SnapAPI rotating proxy
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for API request."""
@@ -358,6 +363,14 @@ class ScreenshotOptions:
             result["failIfContentMissing"] = self.fail_if_content_missing
         if self.fail_if_content_contains:
             result["failIfContentContains"] = self.fail_if_content_contains
+        if self.storage is not None:
+            result["storage"] = self.storage
+        if self.webhook_url:
+            result["webhookUrl"] = self.webhook_url
+        if self.job_id:
+            result["jobId"] = self.job_id
+        if self.premium_proxy is not None:
+            result["premiumProxy"] = self.premium_proxy
 
         return result
 
@@ -720,7 +733,6 @@ ExtractType = Literal[
 ]
 
 
-@dataclass
 ScrapeType = Literal["text", "html", "links"]
 
 
@@ -732,6 +744,7 @@ class ScrapeOptions:
     type: ScrapeType = "text"
     wait_ms: Optional[int] = None
     proxy: Optional[str] = None
+    premium_proxy: Optional[bool] = None
     block_resources: bool = False
     page_step: Optional[int] = None
     locale: Optional[str] = None
@@ -747,6 +760,8 @@ class ScrapeOptions:
             result["waitMs"] = self.wait_ms
         if self.proxy:
             result["proxy"] = self.proxy
+        if self.premium_proxy is not None:
+            result["premiumProxy"] = self.premium_proxy
         if self.block_resources:
             result["blockResources"] = True
         if self.page_step is not None:
@@ -937,3 +952,250 @@ class AnalyzeResult:
             screenshot=data.get("screenshot"),
             metadata=data.get("metadata"),
         )
+
+
+# ─────────────────────────────────────────────
+# Storage Types (v2)
+# ─────────────────────────────────────────────
+
+@dataclass
+class StorageFile:
+    """A file stored in SnapAPI cloud or user S3."""
+    id: str
+    url: str
+    filename: Optional[str] = None
+    size: Optional[int] = None
+    format: Optional[str] = None
+    created_at: Optional[str] = None
+    extra: Optional[Dict[str, Any]] = None
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "StorageFile":
+        known = {"id", "url", "filename", "size", "format", "createdAt"}
+        return cls(
+            id=data["id"],
+            url=data["url"],
+            filename=data.get("filename"),
+            size=data.get("size"),
+            format=data.get("format"),
+            created_at=data.get("createdAt"),
+            extra={k: v for k, v in data.items() if k not in known},
+        )
+
+
+@dataclass
+class StorageListResult:
+    """Result of listing stored files."""
+    files: List[StorageFile]
+    total: Optional[int] = None
+    limit: Optional[int] = None
+    offset: Optional[int] = None
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "StorageListResult":
+        files = [StorageFile.from_dict(f) for f in data.get("files", [])]
+        return cls(
+            files=files,
+            total=data.get("total"),
+            limit=data.get("limit"),
+            offset=data.get("offset"),
+        )
+
+
+@dataclass
+class StorageUsage:
+    """Storage usage info for the current account."""
+    used: int
+    limit: int
+    percentage: float
+    used_formatted: str
+    limit_formatted: str
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "StorageUsage":
+        return cls(
+            used=data.get("used", 0),
+            limit=data.get("limit", 0),
+            percentage=data.get("percentage", 0.0),
+            used_formatted=data.get("usedFormatted", ""),
+            limit_formatted=data.get("limitFormatted", ""),
+        )
+
+
+@dataclass
+class S3Config:
+    """Custom S3-compatible storage configuration."""
+    s3_bucket: str
+    s3_region: str
+    s3_access_key_id: str
+    s3_secret_access_key: str
+    s3_endpoint: Optional[str] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        result: Dict[str, Any] = {
+            "s3_bucket": self.s3_bucket,
+            "s3_region": self.s3_region,
+            "s3_access_key_id": self.s3_access_key_id,
+            "s3_secret_access_key": self.s3_secret_access_key,
+        }
+        if self.s3_endpoint:
+            result["s3_endpoint"] = self.s3_endpoint
+        return result
+
+
+@dataclass
+class S3TestResult:
+    """Result of testing the S3 connection."""
+    success: bool
+    message: Optional[str] = None
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "S3TestResult":
+        return cls(success=data.get("success", False), message=data.get("message"))
+
+
+@dataclass
+class DeleteResult:
+    """Generic delete result."""
+    success: bool
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "DeleteResult":
+        return cls(success=data.get("success", False))
+
+
+# ─────────────────────────────────────────────
+# Scheduled Screenshot Types (v2)
+# ─────────────────────────────────────────────
+
+@dataclass
+class CreateScheduledOptions:
+    """Options for creating a scheduled screenshot job."""
+    url: str
+    cron_expression: str
+    format: Optional[str] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
+    full_page: Optional[bool] = None
+    webhook_url: Optional[str] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        result: Dict[str, Any] = {
+            "url": self.url,
+            "cronExpression": self.cron_expression,
+        }
+        if self.format:
+            result["format"] = self.format
+        if self.width is not None:
+            result["width"] = self.width
+        if self.height is not None:
+            result["height"] = self.height
+        if self.full_page is not None:
+            result["fullPage"] = self.full_page
+        if self.webhook_url:
+            result["webhookUrl"] = self.webhook_url
+        return result
+
+
+@dataclass
+class ScheduledScreenshot:
+    """A scheduled screenshot job."""
+    id: str
+    url: str
+    cron_expression: str
+    next_run: Optional[str] = None
+    format: Optional[str] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
+    full_page: Optional[bool] = None
+    webhook_url: Optional[str] = None
+    created_at: Optional[str] = None
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "ScheduledScreenshot":
+        return cls(
+            id=data["id"],
+            url=data["url"],
+            cron_expression=data.get("cronExpression", ""),
+            next_run=data.get("nextRun"),
+            format=data.get("format"),
+            width=data.get("width"),
+            height=data.get("height"),
+            full_page=data.get("fullPage"),
+            webhook_url=data.get("webhookUrl"),
+            created_at=data.get("createdAt"),
+        )
+
+
+# ─────────────────────────────────────────────
+# Webhook Types (v2)
+# ─────────────────────────────────────────────
+
+@dataclass
+class CreateWebhookOptions:
+    """Options for registering a webhook."""
+    url: str
+    events: List[str]
+    secret: Optional[str] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        result: Dict[str, Any] = {"url": self.url, "events": self.events}
+        if self.secret:
+            result["secret"] = self.secret
+        return result
+
+
+@dataclass
+class Webhook:
+    """A registered webhook endpoint."""
+    id: str
+    url: str
+    events: List[str]
+    secret: Optional[str] = None
+    created_at: Optional[str] = None
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "Webhook":
+        return cls(
+            id=data["id"],
+            url=data["url"],
+            events=data.get("events", []),
+            secret=data.get("secret"),
+            created_at=data.get("createdAt"),
+        )
+
+
+# ─────────────────────────────────────────────
+# API Key Types (v2)
+# ─────────────────────────────────────────────
+
+@dataclass
+class ApiKey:
+    """An API key (value is masked in list responses)."""
+    id: str
+    name: str
+    key: str
+    created_at: Optional[str] = None
+    last_used: Optional[str] = None
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "ApiKey":
+        return cls(
+            id=data["id"],
+            name=data["name"],
+            key=data.get("key", ""),
+            created_at=data.get("createdAt"),
+            last_used=data.get("lastUsed"),
+        )
+
+
+@dataclass
+class CreateApiKeyResult:
+    """Result of creating a new API key (full key shown only once)."""
+    id: str
+    name: str
+    key: str
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "CreateApiKeyResult":
+        return cls(id=data["id"], name=data["name"], key=data["key"])

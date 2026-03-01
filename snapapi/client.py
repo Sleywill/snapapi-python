@@ -34,6 +34,19 @@ from .types import (
     AnalyzeOptions,
     AnalyzeResult,
     AnalyzeProvider,
+    # v2 additions
+    StorageFile,
+    StorageListResult,
+    StorageUsage,
+    S3Config,
+    S3TestResult,
+    DeleteResult,
+    CreateScheduledOptions,
+    ScheduledScreenshot,
+    CreateWebhookOptions,
+    Webhook,
+    ApiKey,
+    CreateApiKeyResult,
 )
 
 
@@ -146,7 +159,12 @@ class SnapAPI:
         response_type: str = "binary",
         include_metadata: bool = False,
         extract_metadata: Optional[ExtractMetadata] = None,
-    ) -> Union[bytes, ScreenshotResult]:
+        # v2 additions
+        storage: Optional[Dict[str, Any]] = None,
+        webhook_url: Optional[str] = None,
+        job_id: Optional[str] = None,
+        premium_proxy: Optional[bool] = None,
+    ) -> Union[bytes, Dict[str, Any]]:
         """
         Capture a screenshot of the specified URL, HTML, or Markdown content.
 
@@ -261,10 +279,17 @@ class SnapAPI:
             response_type=response_type,
             include_metadata=include_metadata,
             extract_metadata=extract_metadata,
+            storage=storage,
+            webhook_url=webhook_url,
+            job_id=job_id,
+            premium_proxy=premium_proxy,
         )
 
         response = self._request("POST", "/v1/screenshot", options.to_dict())
 
+        # Storage / async webhookUrl → JSON object returned
+        if storage is not None or webhook_url is not None or job_id is not None:
+            return json.loads(response)
         if response_type == "binary":
             return response
         elif response_type in ("json", "base64"):
@@ -895,6 +920,222 @@ class SnapAPI:
         response = self._request("GET", "/v1/usage")
         return UsageResult.from_dict(json.loads(response))
 
+    # ─────────────────────────────────────────────
+    # Storage API (v2)
+    # ─────────────────────────────────────────────
+
+    def storage_list_files(self, limit: int = 50, offset: int = 0) -> StorageListResult:
+        """
+        List files stored in SnapAPI cloud or user S3.
+
+        Args:
+            limit:  Max results (default 50)
+            offset: Pagination offset (default 0)
+
+        Returns:
+            StorageListResult with list of files
+        """
+        res = self._request("GET", f"/v1/storage/files?limit={limit}&offset={offset}")
+        return StorageListResult.from_dict(json.loads(res))
+
+    def storage_get_file(self, file_id: str) -> StorageFile:
+        """
+        Get metadata and download URL for a stored file.
+
+        Args:
+            file_id: The file ID
+
+        Returns:
+            StorageFile with url and metadata
+        """
+        res = self._request("GET", f"/v1/storage/files/{file_id}")
+        return StorageFile.from_dict(json.loads(res))
+
+    def storage_delete_file(self, file_id: str) -> DeleteResult:
+        """
+        Delete a stored file.
+
+        Args:
+            file_id: The file ID
+
+        Returns:
+            DeleteResult with success flag
+        """
+        res = self._request("DELETE", f"/v1/storage/files/{file_id}")
+        return DeleteResult.from_dict(json.loads(res))
+
+    def storage_get_usage(self) -> StorageUsage:
+        """
+        Get current storage usage for this account.
+
+        Returns:
+            StorageUsage with used/limit/percentage
+        """
+        res = self._request("GET", "/v1/storage/usage")
+        return StorageUsage.from_dict(json.loads(res))
+
+    def storage_configure_s3(self, config: S3Config) -> Dict[str, Any]:
+        """
+        Configure a custom S3-compatible storage backend.
+
+        Args:
+            config: S3Config with bucket, region, credentials, optional endpoint
+
+        Returns:
+            dict with success flag
+        """
+        res = self._request("POST", "/v1/storage/s3", config.to_dict())
+        return json.loads(res)
+
+    def storage_test_s3(self) -> S3TestResult:
+        """
+        Test the custom S3 connection.
+
+        Returns:
+            S3TestResult with success flag and optional message
+        """
+        res = self._request("POST", "/v1/storage/s3/test", {})
+        return S3TestResult.from_dict(json.loads(res))
+
+    # ─────────────────────────────────────────────
+    # Scheduled Screenshots API (v2)
+    # ─────────────────────────────────────────────
+
+    def scheduled_create(self, options: CreateScheduledOptions) -> ScheduledScreenshot:
+        """
+        Create a new scheduled screenshot job.
+
+        Args:
+            options: CreateScheduledOptions with url, cronExpression, etc.
+
+        Returns:
+            ScheduledScreenshot with id and nextRun
+        """
+        res = self._request("POST", "/v1/scheduled", options.to_dict())
+        return ScheduledScreenshot.from_dict(json.loads(res))
+
+    def scheduled_list(self) -> List[ScheduledScreenshot]:
+        """
+        List all scheduled screenshot jobs.
+
+        Returns:
+            List of ScheduledScreenshot objects
+        """
+        res = self._request("GET", "/v1/scheduled")
+        data = json.loads(res)
+        if isinstance(data, list):
+            return [ScheduledScreenshot.from_dict(j) for j in data]
+        return [ScheduledScreenshot.from_dict(j) for j in data.get("jobs", [])]
+
+    def scheduled_delete(self, job_id: str) -> DeleteResult:
+        """
+        Delete a scheduled screenshot job.
+
+        Args:
+            job_id: The scheduled job ID
+
+        Returns:
+            DeleteResult with success flag
+        """
+        res = self._request("DELETE", f"/v1/scheduled/{job_id}")
+        return DeleteResult.from_dict(json.loads(res))
+
+    # ─────────────────────────────────────────────
+    # Webhooks API (v2)
+    # ─────────────────────────────────────────────
+
+    def webhooks_create(self, options: CreateWebhookOptions) -> Webhook:
+        """
+        Register a new webhook endpoint.
+
+        Args:
+            options: CreateWebhookOptions with url, events, optional secret
+
+        Returns:
+            Webhook with id and registered details
+
+        Example::
+
+            wh = client.webhooks_create(CreateWebhookOptions(
+                url='https://my.app/hooks/snap',
+                events=['screenshot.done'],
+                secret='my-secret',
+            ))
+            print(wh.id)
+        """
+        res = self._request("POST", "/v1/webhooks", options.to_dict())
+        return Webhook.from_dict(json.loads(res))
+
+    def webhooks_list(self) -> List[Webhook]:
+        """
+        List all registered webhooks.
+
+        Returns:
+            List of Webhook objects
+        """
+        res = self._request("GET", "/v1/webhooks")
+        data = json.loads(res)
+        if isinstance(data, list):
+            return [Webhook.from_dict(w) for w in data]
+        return [Webhook.from_dict(w) for w in data.get("webhooks", [])]
+
+    def webhooks_delete(self, webhook_id: str) -> DeleteResult:
+        """
+        Delete a webhook.
+
+        Args:
+            webhook_id: The webhook ID
+
+        Returns:
+            DeleteResult with success flag
+        """
+        res = self._request("DELETE", f"/v1/webhooks/{webhook_id}")
+        return DeleteResult.from_dict(json.loads(res))
+
+    # ─────────────────────────────────────────────
+    # API Keys API (v2)
+    # ─────────────────────────────────────────────
+
+    def keys_list(self) -> List[ApiKey]:
+        """
+        List all API keys (key values are masked).
+
+        Returns:
+            List of ApiKey objects
+        """
+        res = self._request("GET", "/v1/keys")
+        data = json.loads(res)
+        if isinstance(data, list):
+            return [ApiKey.from_dict(k) for k in data]
+        return [ApiKey.from_dict(k) for k in data.get("keys", [])]
+
+    def keys_create(self, name: str) -> CreateApiKeyResult:
+        """
+        Create a new API key.
+        The full key value is returned only once — store it securely!
+
+        Args:
+            name: Human-readable name for the key
+
+        Returns:
+            CreateApiKeyResult with id, name, and full key
+        """
+        res = self._request("POST", "/v1/keys", {"name": name})
+        return CreateApiKeyResult.from_dict(json.loads(res))
+
+    def keys_delete(self, key_id: str) -> DeleteResult:
+        """
+        Delete an API key.
+
+        Args:
+            key_id: The key ID
+
+        Returns:
+            DeleteResult with success flag
+        """
+        res = self._request("DELETE", f"/v1/keys/{key_id}")
+        return DeleteResult.from_dict(json.loads(res))
+
     def _request(
         self,
         method: str,
@@ -907,7 +1148,7 @@ class SnapAPI:
         headers = {
             "X-Api-Key": self.api_key,
             "Content-Type": "application/json",
-            "User-Agent": "snapapi-python/1.3.1",
+            "User-Agent": "snapapi-python/2.0.0",
         }
 
         body = None

@@ -1,17 +1,14 @@
 # snapapi
 
-Official Python SDK for [SnapAPI](https://snapapi.pics) - Lightning-fast screenshot, PDF, video, extraction & AI analysis API.
+Official Python SDK for **[SnapAPI](https://snapapi.pics)** — a lightning-fast screenshot, scrape, extract and AI-analyze API.
 
 ## Installation
 
 ```bash
 pip install snapapi
-```
 
-Or from GitHub:
-
-```bash
-pip install git+https://github.com/Sleywill/snapapi-python
+# With async support (aiohttp)
+pip install snapapi[async]
 ```
 
 ## Quick Start
@@ -19,350 +16,309 @@ pip install git+https://github.com/Sleywill/snapapi-python
 ```python
 from snapapi import SnapAPI
 
-client = SnapAPI(api_key='sk_live_xxx')
+client = SnapAPI(api_key="sk_live_YOUR_KEY")
 
-# Capture a screenshot
-screenshot = client.screenshot(url='https://example.com')
-with open('screenshot.png', 'wb') as f:
-    f.write(screenshot)
+# Take a screenshot
+buf = client.screenshot(url="https://example.com")
+with open("shot.png", "wb") as f:
+    f.write(buf)
 ```
 
-## API Endpoints
+### Async
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/v1/ping` | `ping()` | Health check |
-| `/v1/screenshot` | `screenshot()` | Screenshot (PNG/JPEG/WebP/AVIF/PDF) |
-| `/v1/pdf` | `pdf()` | Dedicated PDF generation |
-| `/v1/screenshot/batch` | `batch()` | Batch screenshots (up to 10 URLs) |
-| `/v1/video` | `video()` | Video recording with scroll |
-| `/v1/extract` | `extract()` | Content extraction |
-| `/v1/analyze` | `analyze()` | AI-powered analysis |
-| `/v1/usage` | `get_usage()` | Usage statistics |
-| `/v1/devices` | `get_devices()` | Device presets |
-| `/v1/capabilities` | `get_capabilities()` | API capabilities |
-| `/v1/screenshot` (async) | `screenshot_async()` | Async screenshot |
-| `/v1/screenshot/async/{id}` | `get_async_status()` | Poll async job |
+```python
+import asyncio
+from snapapi import AsyncSnapAPI
 
-## Usage Examples
+async def main():
+    async with AsyncSnapAPI(api_key="sk_live_YOUR_KEY") as client:
+        buf = await client.screenshot(url="https://example.com")
+        with open("shot.png", "wb") as f:
+            f.write(buf)
 
-### Screenshots
+asyncio.run(main())
+```
+
+---
+
+## Authentication
+
+```python
+from snapapi import SnapAPI
+
+client = SnapAPI(
+    api_key="sk_live_YOUR_KEY",   # required
+    base_url="https://api.snapapi.pics",  # optional override
+    timeout=60,                    # seconds, default 60
+)
+```
+
+---
+
+## Methods
+
+### `client.screenshot(...)` → `bytes | dict`
+
+Capture a screenshot of a URL, raw HTML, or Markdown.
+
+| Return type | Trigger |
+|---|---|
+| `bytes` | Default (binary image/PDF) |
+| `dict` with `{id, url}` | `storage=...` is set |
+| `dict` with `{jobId, status}` | `webhook_url=...` is set |
 
 ```python
 # Basic PNG
-data = client.screenshot(url='https://example.com')
+buf = client.screenshot(url="https://example.com")
+open("shot.png", "wb").write(buf)
 
-# Different formats
-jpeg = client.screenshot(url='https://example.com', format='jpeg', quality=80)
-webp = client.screenshot(url='https://example.com', format='webp', quality=90)
-avif = client.screenshot(url='https://example.com', format='avif')
-
-# Full page
-data = client.screenshot(url='https://example.com', full_page=True)
-
-# Device preset
-data = client.screenshot_device(url='https://example.com', device='iphone-15-pro')
-
-# Dark mode
-data = client.screenshot(url='https://example.com', dark_mode=True)
-
-# Element capture
-data = client.screenshot(url='https://example.com', selector='h1')
-
-# Clip region
-data = client.screenshot(url='https://example.com',
-                          clip_x=0, clip_y=0, clip_width=400, clip_height=300)
-
-# Mobile emulation
-data = client.screenshot(url='https://example.com',
-                          width=375, height=812,
-                          device_scale_factor=3.0,
-                          is_mobile=True, has_touch=True)
-
-# Custom CSS & JavaScript
-data = client.screenshot(url='https://example.com',
-                          css='body { background: red !important; }',
-                          javascript='document.querySelector(".popup")?.remove()')
-
-# Block ads, trackers, cookie banners, chat widgets
-data = client.screenshot(url='https://example.com',
-                          block_ads=True, block_trackers=True,
-                          block_cookie_banners=True, block_chat_widgets=True)
-
-# Hide specific elements
-data = client.screenshot(url='https://example.com',
-                          hide_selectors=['#banner', '.sidebar'])
-
-# Wait options
-data = client.screenshot(url='https://example.com',
-                          delay=1000,
-                          wait_for_selector='#content',
-                          wait_until='networkidle')
-
-# Custom headers, user agent, timezone, locale
-data = client.screenshot(url='https://example.com',
-                          user_agent='MyBot/1.0',
-                          extra_headers={'Accept-Language': 'de-DE'},
-                          timezone='Europe/Berlin',
-                          locale='de-DE')
-
-# Landscape orientation
-data = client.screenshot(url='https://example.com',
-                          is_landscape=True, width=812, height=375)
-
-# Reduced motion
-data = client.screenshot(url='https://example.com', reduced_motion=True)
-```
-
-### From HTML or Markdown
-
-```python
-# From HTML
-data = client.screenshot_from_html(
-    html='<h1 style="color:blue">Hello!</h1><p>Generated by SDK</p>'
-)
-
-# From Markdown
-data = client.screenshot_from_markdown(
-    markdown='# Hello World\n\n**Bold** text\n- Item 1\n- Item 2'
-)
-```
-
-### JSON Response with Metadata
-
-```python
-result = client.screenshot(
-    url='https://example.com',
-    response_type='json',
-    include_metadata=True,
-    extract_metadata=ExtractMetadata(
-        fonts=True, colors=True, links=True, http_status_code=True
-    )
-)
-print(result.success)           # True
-print(result.width, result.height)  # 1280 800
-print(result.file_size)         # bytes
-print(result.took)              # ms
-print(result.data)              # base64 image data
-print(result.metadata.title)    # page title
-print(result.metadata.fonts)    # ['Arial', ...]
-print(result.metadata.colors)   # ['#ffffff', ...]
-```
-
-### Thumbnails
-
-```python
-from snapapi.types import ThumbnailOptions
-
-result = client.screenshot(
-    url='https://example.com',
-    response_type='json',
-    thumbnail=ThumbnailOptions(enabled=True, width=200, height=150, fit='cover')
-)
-print(result.thumbnail)  # base64 thumbnail
-```
-
-### Cookies (Authenticated Pages)
-
-```python
-from snapapi.types import Cookie
-
-data = client.screenshot(
-    url='https://example.com/dashboard',
-    cookies=[Cookie(name='session', value='abc123', domain='example.com')]
-)
-```
-
-### PDF Generation
-
-```python
-from snapapi.types import PdfOptions
-
-# Basic PDF
-pdf = client.pdf(url='https://example.com')
-
-# With options
-pdf = client.pdf(
-    url='https://example.com',
-    pdf_options=PdfOptions(
-        page_size='a4',
-        landscape=True,
-        print_background=True,
-        margin_top='20mm',
-        margin_bottom='20mm',
-        margin_left='15mm',
-        margin_right='15mm',
-        scale=0.8
-    )
-)
-
-# PDF from HTML
-pdf = client.pdf(
-    html='<h1>Invoice #123</h1><p>Total: $99.99</p>',
-    pdf_options=PdfOptions(page_size='letter')
-)
-
-with open('document.pdf', 'wb') as f:
-    f.write(pdf)
-```
-
-### Video Recording
-
-```python
-# Basic video (duration in seconds, 1-30)
-video = client.video(url='https://example.com', duration=5)
-with open('capture.mp4', 'wb') as f:
-    f.write(video)
-
-# Scroll animation video
-video = client.video(
-    url='https://example.com',
-    duration=10,
-    scroll=True,
-    scroll_duration=1500,
-    scroll_easing='ease_in_out',
-    scroll_back=True
-)
-
-# GIF format
-gif = client.video(url='https://example.com', format='gif', duration=3, fps=10)
-
-# JSON response with metadata
-result = client.video(url='https://example.com', duration=3, response_type='json')
-print(result.success, result.format, result.file_size)
-```
-
-### Batch Screenshots
-
-```python
-# Submit batch job
-batch = client.batch(
-    urls=['https://example.com', 'https://httpbin.org/html'],
-    format='png',
+# Full-page dark-mode WebP
+buf = client.screenshot(
+    url="https://example.com",
+    format="webp",
+    full_page=True,
     dark_mode=True,
-    block_ads=True
-)
-print(batch.job_id, batch.status)
-
-# Poll for completion
-import time
-while True:
-    status = client.get_batch_status(batch.job_id)
-    if status.status in ('completed', 'failed'):
-        for item in status.results:
-            print(f'{item.url}: {item.status}')
-        break
-    time.sleep(2)
-```
-
-### Content Extraction
-
-```python
-# Convenience methods for each type
-result = client.extract_markdown(url='https://example.com')
-result = client.extract_text(url='https://example.com')
-result = client.extract_article(url='https://blog.example.com/post')
-result = client.extract_structured(url='https://example.com')
-result = client.extract_links(url='https://example.com')
-result = client.extract_images(url='https://example.com')
-result = client.extract_metadata(url='https://example.com')
-
-# Full control
-result = client.extract(
-    url='https://example.com',
-    type='html',           # markdown|text|html|article|structured|links|images|metadata
-    selector='article',
     block_ads=True,
     block_cookie_banners=True,
+    quality=80,
+)
+
+# iPhone 15 Pro viewport
+buf = client.screenshot(
+    url="https://example.com",
+    device="iphone-15-pro",
+    format="png",
+)
+
+# Render raw HTML
+buf = client.screenshot(
+    html="<h1>Hello!</h1>",
+    width=800,
+    height=300,
+)
+
+# Generate PDF
+pdf = client.screenshot(
+    url="https://example.com",
+    format="pdf",
+    page_size="a4",
+    margins={"top": "20mm", "bottom": "20mm"},
+)
+open("page.pdf", "wb").write(pdf)
+
+# Store in SnapAPI cloud
+result = client.screenshot(
+    url="https://example.com",
+    storage={"destination": "snapapi"},
+)
+print(result["id"], result["url"])
+
+# Async via webhook
+queued = client.screenshot(
+    url="https://example.com",
+    webhook_url="https://my.app/hooks/snapapi",
+)
+print(queued["jobId"])
+```
+
+**Key parameters:**
+
+| Parameter | Type | Description |
+|---|---|---|
+| `url` | `str` | Page URL |
+| `html` | `str` | Raw HTML to render |
+| `markdown` | `str` | Markdown to render |
+| `format` | `str` | `'png'/'jpeg'/'webp'/'avif'/'pdf'` |
+| `quality` | `int` | 1-100 for JPEG/WebP |
+| `device` | `str` | 25 device presets |
+| `width` / `height` | `int` | Viewport size |
+| `full_page` | `bool` | Capture full scrollable page |
+| `selector` | `str` | CSS element to capture |
+| `delay` | `int` | Wait before capture (ms) |
+| `wait_until` | `str` | `'load'/'domcontentloaded'/'networkidle'` |
+| `dark_mode` | `bool` | Dark colour scheme |
+| `css` / `javascript` | `str` | Inject CSS/JS |
+| `hide_selectors` | `list` | Hide elements |
+| `block_ads` / `block_trackers` / `block_cookie_banners` | `bool` | Blocking |
+| `proxy` | `ProxyConfig` | Custom proxy |
+| `premium_proxy` | `bool` | SnapAPI rotating proxy |
+| `geolocation` | `Geolocation` | Emulate location |
+| `timezone` | `str` | e.g. `'America/New_York'` |
+| `http_auth` | `HttpAuth` | HTTP Basic Auth |
+| `cookies` | `list[Cookie]` | Inject cookies |
+| `extra_headers` | `dict` | Custom request headers |
+| `storage` | `dict` | `{"destination": "snapapi"}` |
+| `webhook_url` | `str` | Async delivery |
+| `page_size` / `landscape` / `margins` | | PDF options |
+
+---
+
+### `client.scrape(options)` → `ScrapeResult`
+
+```python
+from snapapi import SnapAPI, ScrapeOptions
+
+client = SnapAPI(api_key="sk_live_YOUR_KEY")
+
+result = client.scrape(ScrapeOptions(
+    url="https://news.ycombinator.com",
+    type="links",          # 'text' | 'html' | 'links'
+    pages=1,
+    wait_ms=1000,
+    block_resources=True,
+))
+
+for page in result.results:
+    print(f"Page {page.page}: {page.data[:200]}")
+```
+
+---
+
+### `client.extract(options)` → `ExtractResult`
+
+```python
+from snapapi import SnapAPI, ExtractOptions
+
+result = client.extract(ExtractOptions(
+    url="https://example.com/blog/post",
+    type="markdown",       # html|text|markdown|article|links|images|metadata|structured
     clean_output=True,
-    max_length=5000
-)
-print(result.success, result.type, result.content)
+    max_length=10000,
+))
+
+print(result.content)
 ```
 
-### AI Analysis
+---
+
+### `client.analyze(options)` → `AnalyzeResult` *(BYOK)*
 
 ```python
-# Basic analysis (requires provider API key)
-result = client.analyze(
-    url='https://example.com',
-    prompt='Summarize this page in one sentence',
-    provider='openai',
-    api_key='sk-...'
-)
+import os
+from snapapi import SnapAPI, AnalyzeOptions
+
+result = client.analyze(AnalyzeOptions(
+    url="https://example.com",
+    prompt="Summarize the main content in 3 bullet points.",
+    provider="openai",
+    api_key=os.environ["OPENAI_API_KEY"],
+    include_screenshot=False,
+    include_metadata=True,
+))
+
 print(result.result)
-
-# Structured JSON output
-result = client.analyze(
-    url='https://example.com/products',
-    prompt='Extract product names and prices',
-    provider='openai',
-    api_key='sk-...',
-    json_schema={
-        'type': 'object',
-        'properties': {
-            'products': {
-                'type': 'array',
-                'items': {
-                    'type': 'object',
-                    'properties': {
-                        'name': {'type': 'string'},
-                        'price': {'type': 'number'}
-                    }
-                }
-            }
-        }
-    }
-)
-
-# With screenshot and metadata
-result = client.analyze(
-    url='https://example.com',
-    prompt='Describe the visual layout',
-    provider='anthropic',
-    api_key='sk-ant-...',
-    include_screenshot=True,
-    include_metadata=True
-)
 ```
 
-### Async Screenshots
+---
+
+### Storage API
 
 ```python
-# Submit async job
-job = client.screenshot_async(url='https://example.com')
-job_id = job['jobId']
+# Take a screenshot and store it
+stored = client.screenshot(
+    url="https://example.com",
+    storage={"destination": "snapapi"},
+)
+file_id = stored["id"]
 
-# Poll for result
-import time
-while True:
-    status = client.get_async_status(job_id)
-    if status['status'] == 'completed':
-        print(f"Done! Size: {status['fileSize']} bytes")
-        break
-    time.sleep(1)
+# Check usage
+usage = client.storage_get_usage()
+print(f"{usage.used_formatted} / {usage.limit_formatted} ({usage.percentage}%)")
+
+# List files
+listing = client.storage_list_files(limit=10)
+for f in listing.files:
+    print(f.id, f.url)
+
+# Get a file
+file = client.storage_get_file(file_id)
+print(file.url)
+
+# Delete a file
+result = client.storage_delete_file(file_id)
+print(result.success)
+
+# Configure custom S3
+from snapapi import S3Config
+client.storage_configure_s3(S3Config(
+    s3_bucket="my-bucket",
+    s3_region="us-east-1",
+    s3_access_key_id="AKIA...",
+    s3_secret_access_key="secret",
+))
+
+# Test S3 connection
+test = client.storage_test_s3()
+print("S3 OK:", test.success)
 ```
 
-### Utility Endpoints
+---
+
+### Scheduled Screenshots
 
 ```python
-# Ping
-result = client.ping()  # {'status': 'ok', 'timestamp': ...}
+from snapapi import SnapAPI, CreateScheduledOptions
 
-# Usage stats
-usage = client.get_usage()
-print(f'{usage.used}/{usage.limit} used, {usage.remaining} remaining')
-print(f'Resets: {usage.reset_at}')
+# Create a daily job
+job = client.scheduled_create(CreateScheduledOptions(
+    url="https://example.com",
+    cron_expression="0 9 * * *",    # every day at 09:00 UTC
+    format="png",
+    full_page=True,
+    webhook_url="https://my.app/hooks/snap",
+))
+print(job.id, job.next_run)
 
-# Device presets
-devices = client.get_devices()
-for category, device_list in devices.devices.items():
-    print(f'{category}: {len(device_list)} devices')
+# List jobs
+jobs = client.scheduled_list()
+for j in jobs:
+    print(j.id, j.cron_expression, j.next_run)
 
-# Capabilities
-caps = client.get_capabilities()
-print(caps.version, caps.capabilities)
+# Delete a job
+client.scheduled_delete(job.id)
 ```
+
+---
+
+### Webhooks
+
+```python
+from snapapi import CreateWebhookOptions
+
+# Register a webhook
+wh = client.webhooks_create(CreateWebhookOptions(
+    url="https://my.app/hooks/snapapi",
+    events=["screenshot.done"],
+    secret="my-signing-secret",
+))
+print(wh.id)
+
+# List webhooks
+webhooks = client.webhooks_list()
+
+# Delete
+client.webhooks_delete(wh.id)
+```
+
+---
+
+### API Keys
+
+```python
+# List (values are masked)
+keys = client.keys_list()
+for k in keys:
+    print(k.name, k.key)
+
+# Create — full key shown only once
+new_key = client.keys_create("ci-pipeline")
+print("Save this:", new_key.key)
+
+# Delete
+client.keys_delete(new_key.id)
+```
+
+---
 
 ## Error Handling
 
@@ -370,37 +326,63 @@ print(caps.version, caps.capabilities)
 from snapapi import SnapAPI, SnapAPIError
 
 try:
-    client.screenshot(url='invalid-url')
+    buf = client.screenshot(url="https://example.com")
 except SnapAPIError as e:
-    print(e.code)        # 'VALIDATION_ERROR'
-    print(e.status_code) # 400
-    print(e.message)     # Error message
-    print(e.details)     # Additional details
+    print(e.code, e.status_code, str(e))
 ```
 
-| Code | Status | Description |
-|------|--------|-------------|
-| `VALIDATION_ERROR` | 400 | Invalid parameters |
-| `UNAUTHORIZED` | 401 | Invalid API key |
-| `FORBIDDEN` | 403 | Feature requires higher plan |
-| `QUOTA_EXCEEDED` | 402 | Monthly quota exceeded |
-| `TOO_MANY_REQUESTS` | 429 | Rate limit exceeded |
-| `INTERNAL_SERVER_ERROR` | 500 | Server error |
+---
 
-## Type Hints
-
-Full type hints included for IDE support:
+## Async Client
 
 ```python
-from snapapi import SnapAPI, ScreenshotResult
-from snapapi.types import (
-    ScreenshotOptions, PdfOptions, ThumbnailOptions,
-    ExtractMetadata, Cookie, HttpAuth, ProxyConfig,
-    Geolocation, VideoOptions, VideoResult,
-    BatchOptions, BatchResult, ExtractOptions, ExtractResult,
-    AnalyzeOptions, AnalyzeResult
+import asyncio
+from snapapi import AsyncSnapAPI, ScrapeOptions, CreateScheduledOptions
+
+async def main():
+    async with AsyncSnapAPI(api_key="sk_live_YOUR_KEY") as client:
+        # Screenshot
+        buf = await client.screenshot(url="https://example.com", dark_mode=True)
+
+        # Scrape
+        result = await client.scrape(ScrapeOptions(url="https://example.com", type="text"))
+
+        # Storage
+        usage = await client.storage_get_usage()
+        print(usage.used_formatted)
+
+        # Scheduled
+        job = await client.scheduled_create(CreateScheduledOptions(
+            url="https://example.com",
+            cron_expression="0 9 * * *",
+        ))
+
+asyncio.run(main())
+```
+
+---
+
+## Type Reference
+
+```python
+from snapapi import (
+    ScreenshotOptions, ScrapeOptions, ExtractOptions, AnalyzeOptions,
+    StorageFile, StorageUsage, S3Config,
+    CreateScheduledOptions, ScheduledScreenshot,
+    CreateWebhookOptions, Webhook,
+    ApiKey, CreateApiKeyResult,
+    Cookie, HttpAuth, ProxyConfig, Geolocation,
 )
 ```
+
+---
+
+## Links
+
+- 🌐 [snapapi.pics](https://snapapi.pics)
+- 📖 [API Documentation](https://snapapi.pics/docs)
+- 🐛 [Issues](https://github.com/Sleywill/snapapi-python/issues)
+- 📦 [JavaScript SDK](https://github.com/Sleywill/snapapi-js)
 
 ## License
 
