@@ -2,9 +2,8 @@
 Type definitions for SnapAPI Python SDK
 """
 
-from typing import Optional, List, Dict, Any, Literal
 from dataclasses import dataclass, field
-
+from typing import Any, Dict, List, Literal, Optional
 
 # Device preset type
 DevicePreset = Literal[

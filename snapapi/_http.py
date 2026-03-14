@@ -12,13 +12,13 @@ import time
 from typing import Any, Dict, Optional
 
 from .exceptions import (
-    SnapAPIError,
-    RateLimitError,
     AuthenticationError,
-    ValidationError,
-    QuotaExceededError,
-    TimeoutError,
     NetworkError,
+    QuotaExceededError,
+    RateLimitError,
+    SnapAPIError,
+    TimeoutError,
+    ValidationError,
 )
 
 SDK_VERSION = "3.0.0"

@@ -17,7 +17,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from snapapi import SnapAPI, AsyncSnapAPI, AuthenticationError
+from snapapi import AsyncSnapAPI, AuthenticationError, SnapAPI
 
 API_KEY = os.environ.get("SNAPAPI_KEY", "")
 BASE_URL = os.environ.get("SNAPAPI_BASE_URL")

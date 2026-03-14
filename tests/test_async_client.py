@@ -6,15 +6,16 @@ HTTP calls are fully mocked via respx (httpx interceptor).
 from __future__ import annotations
 
 import json
-import pytest
+
 import httpx
+import pytest
 import respx
 
 from snapapi import (
     AsyncSnapAPI,
-    SnapAPIError,
-    RateLimitError,
     AuthenticationError,
+    RateLimitError,
+    SnapAPIError,
 )
 
 BASE = "https://snapapi.pics"
