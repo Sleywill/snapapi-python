@@ -249,6 +249,12 @@ class ScreenshotOptions:
     webhook_url: Optional[str] = None         # async delivery
     job_id: Optional[str] = None              # poll async result
     premium_proxy: Optional[bool] = None      # SnapAPI rotating proxy
+    # v3 additions
+    block_trackers: bool = False
+    block_chat_widgets: bool = False
+    page_size: Optional[str] = None
+    landscape: Optional[bool] = None
+    margins: Optional[Dict[str, str]] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for API request."""
@@ -371,6 +377,16 @@ class ScreenshotOptions:
             result["jobId"] = self.job_id
         if self.premium_proxy is not None:
             result["premiumProxy"] = self.premium_proxy
+        if self.block_trackers:
+            result["blockTrackers"] = True
+        if self.block_chat_widgets:
+            result["blockChatWidgets"] = True
+        if self.page_size:
+            result["pageSize"] = self.page_size
+        if self.landscape is not None:
+            result["landscape"] = self.landscape
+        if self.margins:
+            result["margins"] = self.margins
 
         return result
 
@@ -467,13 +483,16 @@ class VideoOptions:
     user_agent: Optional[str] = None
     cookies: Optional[List[Cookie]] = None
     response_type: Literal["binary", "base64", "json"] = "binary"
-    scroll: bool = False
+    scrolling: bool = False
+    scroll_speed: Optional[int] = None
     scroll_delay: Optional[int] = None
     scroll_duration: Optional[int] = None
     scroll_by: Optional[int] = None
     scroll_easing: Optional[ScrollEasing] = None
-    scroll_back: bool = False
-    scroll_complete: bool = False
+    scroll_back: bool = True
+    scroll_complete: bool = True
+    # Legacy compat alias (v2 used `scroll`, v3 uses `scrolling`)
+    scroll: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for API request."""
@@ -513,10 +532,10 @@ class VideoOptions:
             result["userAgent"] = self.user_agent
         if self.cookies:
             result["cookies"] = [c.to_dict() for c in self.cookies]
-        if self.response_type != "binary":
-            result["responseType"] = self.response_type
-        if self.scroll:
-            result["scroll"] = True
+        if self.scrolling or self.scroll:
+            result["scrolling"] = True
+        if self.scroll_speed is not None:
+            result["scrollSpeed"] = self.scroll_speed
         if self.scroll_delay is not None:
             result["scrollDelay"] = self.scroll_delay
         if self.scroll_duration is not None:
@@ -795,6 +814,7 @@ class ScrapeResult:
         return cls(success=data.get("success", False), results=results)
 
 
+@dataclass
 class ExtractOptions:
     """Options for content extraction."""
     url: str

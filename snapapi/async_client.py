@@ -1,52 +1,62 @@
 """
-SnapAPI Async Python Client (aiohttp-based)
+Asynchronous SnapAPI client (httpx-based).
 
-Usage::
+Uses ``httpx.AsyncClient`` under the hood, which supports connection
+pooling, timeouts, and HTTP/2.
+
+Example::
 
     import asyncio
     from snapapi import AsyncSnapAPI
 
     async def main():
-        client = AsyncSnapAPI(api_key="sk_live_YOUR_KEY")
-        buf = await client.screenshot(url="https://example.com")
-        with open("shot.png", "wb") as f:
-            f.write(buf)
+        async with AsyncSnapAPI(api_key="sk_live_...") as snap:
+            buf = await snap.screenshot(url="https://example.com")
+            with open("shot.png", "wb") as f:
+                f.write(buf)
 
     asyncio.run(main())
-
-Requires: pip install aiohttp
 """
 
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import Any, Dict, List, Optional, Union
 
 try:
-    import aiohttp
-except ImportError as exc:  # pragma: no cover
+    import httpx
+except ImportError as exc:
     raise ImportError(
-        "aiohttp is required for AsyncSnapAPI: pip install aiohttp"
+        "httpx is required for AsyncSnapAPI: pip install httpx"
     ) from exc
 
-from .client import SnapAPIError
+from ._http import (
+    DEFAULT_BASE_URL,
+    DEFAULT_TIMEOUT,
+    DEFAULT_MAX_RETRIES,
+    DEFAULT_RETRY_DELAY,
+    build_headers,
+    parse_error_response,
+    should_retry,
+    compute_backoff,
+)
+from .exceptions import SnapAPIError, TimeoutError, NetworkError
 from .types import (
-    ScreenshotOptions,
-    ScreenshotResult,
-    ExtractOptions,
-    ExtractResult,
     ScrapeOptions,
     ScrapeResult,
+    ExtractOptions,
+    ExtractResult,
     AnalyzeOptions,
     AnalyzeResult,
+    VideoOptions,
+    ScreenshotOptions,
+    DevicePreset,
     Cookie,
     HttpAuth,
     ProxyConfig,
     Geolocation,
-    PdfOptions,
-    ThumbnailOptions,
-    ExtractMetadata,
-    DevicePreset,
+    UsageResult,
     StorageFile,
     StorageListResult,
     StorageUsage,
@@ -63,78 +73,64 @@ from .types import (
 
 
 class AsyncSnapAPI:
+    """Asynchronous SnapAPI client.
+
+    Supports the async context-manager protocol::
+
+        async with AsyncSnapAPI(api_key="sk_live_...") as snap:
+            buf = await snap.screenshot(url="https://example.com")
+
+    Args:
+        api_key: Your SnapAPI key (required).
+        base_url: Override the API base URL.
+        timeout: Request timeout in seconds (default: 60).
+        max_retries: Maximum automatic retries on 429 / 5xx (default: 3).
+        retry_delay: Initial backoff delay in seconds (default: 0.5).
     """
-    Async SnapAPI client (powered by aiohttp).
-
-    Example::
-
-        async with AsyncSnapAPI(api_key="sk_live_xxx") as client:
-            buf = await client.screenshot(url="https://example.com")
-    """
-
-    DEFAULT_BASE_URL = "https://api.snapapi.pics"
-    DEFAULT_TIMEOUT = 60
 
     def __init__(
         self,
         api_key: str,
         base_url: Optional[str] = None,
-        timeout: Optional[int] = None,
+        timeout: Optional[float] = None,
+        max_retries: int = DEFAULT_MAX_RETRIES,
+        retry_delay: float = DEFAULT_RETRY_DELAY,
     ) -> None:
         if not api_key:
             raise ValueError("api_key is required")
+
         self.api_key = api_key
-        self.base_url = (base_url or self.DEFAULT_BASE_URL).rstrip("/")
-        self.timeout = aiohttp.ClientTimeout(total=timeout or self.DEFAULT_TIMEOUT)
-        self._session: Optional[aiohttp.ClientSession] = None
+        self.base_url = (base_url or DEFAULT_BASE_URL).rstrip("/")
+        self.timeout = timeout if timeout is not None else DEFAULT_TIMEOUT
+        self.max_retries = max_retries
+        self.retry_delay = retry_delay
+        self._client: Optional[httpx.AsyncClient] = None
+
+    # ── Context manager ─────────────────────────────────────────────────────
 
     async def __aenter__(self) -> "AsyncSnapAPI":
-        self._session = aiohttp.ClientSession(timeout=self.timeout)
+        self._client = httpx.AsyncClient(
+            timeout=self.timeout,
+            headers=build_headers(self.api_key),
+        )
         return self
 
     async def __aexit__(self, *_: Any) -> None:
-        if self._session:
-            await self._session.close()
-            self._session = None
+        await self.close()
 
-    def _get_session(self) -> aiohttp.ClientSession:
-        if self._session is None:
-            self._session = aiohttp.ClientSession(timeout=self.timeout)
-        return self._session
+    async def close(self) -> None:
+        """Close the underlying HTTP connection pool."""
+        if self._client is not None:
+            await self._client.aclose()
+            self._client = None
 
-    def _headers(self) -> Dict[str, str]:
-        return {
-            "x-api-key": self.api_key,
-            "Content-Type": "application/json",
-            "User-Agent": "snapapi-python/2.0.0",
-        }
-
-    async def _request(
-        self,
-        method: str,
-        path: str,
-        data: Optional[Dict[str, Any]] = None,
-    ) -> bytes:
-        url = f"{self.base_url}{path}"
-        body = json.dumps(data).encode() if data is not None else None
-        session = self._get_session()
-
-        async with session.request(method, url, data=body, headers=self._headers()) as resp:
-            raw = await resp.read()
-            if resp.status >= 400:
-                try:
-                    body_json = json.loads(raw)
-                    message = body_json.get("message", f"HTTP {resp.status}")
-                    code = body_json.get("error", "HTTP_ERROR")
-                    if isinstance(code, str):
-                        code = code.replace(" ", "_").upper()
-                    else:
-                        code = "HTTP_ERROR"
-                except Exception:
-                    message = f"HTTP {resp.status}"
-                    code = "HTTP_ERROR"
-                raise SnapAPIError(message=message, code=code, status_code=resp.status)
-            return raw
+    def _get_client(self) -> httpx.AsyncClient:
+        if self._client is None:
+            self._client = httpx.AsyncClient(
+                timeout=self.timeout,
+                headers=build_headers(self.api_key),
+            )
+        return self._client
 
     # ── Screenshot ──────────────────────────────────────────────────────────
 
@@ -148,10 +144,15 @@ class AsyncSnapAPI:
         device: Optional[DevicePreset] = None,
         width: int = 1280,
         height: int = 800,
+        device_scale_factor: float = 1.0,
+        is_mobile: bool = False,
+        has_touch: bool = False,
         full_page: bool = False,
+        full_page_scroll_delay: Optional[int] = None,
+        full_page_max_height: Optional[int] = None,
         selector: Optional[str] = None,
         delay: int = 0,
-        timeout: int = 30000,
+        timeout: Optional[int] = None,
         wait_until: Optional[str] = None,
         wait_for_selector: Optional[str] = None,
         dark_mode: bool = False,
@@ -172,249 +173,433 @@ class AsyncSnapAPI:
         premium_proxy: Optional[bool] = None,
         geolocation: Optional[Geolocation] = None,
         timezone: Optional[str] = None,
-        pdf_options: Optional[PdfOptions] = None,
         storage: Optional[Dict[str, Any]] = None,
         webhook_url: Optional[str] = None,
         job_id: Optional[str] = None,
-        full_page_scroll_delay: Optional[int] = None,
-        full_page_max_height: Optional[int] = None,
-        response_type: str = "binary",
-        include_metadata: bool = False,
-        device_scale_factor: float = 1.0,
-        is_mobile: bool = False,
-        has_touch: bool = False,
         page_size: Optional[str] = None,
         landscape: Optional[bool] = None,
         margins: Optional[Dict[str, str]] = None,
     ) -> Union[bytes, Dict[str, Any]]:
-        """
-        Capture a screenshot asynchronously.
+        """Capture a screenshot asynchronously.
 
-        Returns bytes for binary/image, or dict for storage/async responses.
+        Args and returns are identical to :meth:`SnapAPI.screenshot`.
         """
         if not url and not html and not markdown:
             raise ValueError("One of url, html, or markdown is required")
 
-        payload: Dict[str, Any] = {"format": format}
+        opts = ScreenshotOptions(
+            url=url,
+            html=html,
+            markdown=markdown,
+            format=format,  # type: ignore[arg-type]
+            quality=quality,
+            device=device,
+            width=width,
+            height=height,
+            device_scale_factor=device_scale_factor,
+            is_mobile=is_mobile,
+            has_touch=has_touch,
+            full_page=full_page,
+            full_page_scroll_delay=full_page_scroll_delay,
+            full_page_max_height=full_page_max_height,
+            selector=selector,
+            delay=delay,
+            timeout=timeout,
+            wait_until=wait_until,  # type: ignore[arg-type]
+            wait_for_selector=wait_for_selector,
+            dark_mode=dark_mode,
+            reduced_motion=reduced_motion,
+            css=css,
+            javascript=javascript,
+            hide_selectors=hide_selectors,
+            click_selector=click_selector,
+            block_ads=block_ads,
+            block_trackers=block_trackers,
+            block_cookie_banners=block_cookie_banners,
+            block_chat_widgets=block_chat_widgets,
+            user_agent=user_agent,
+            extra_headers=extra_headers,
+            cookies=cookies,
+            http_auth=http_auth,
+            proxy=proxy,
+            premium_proxy=premium_proxy,
+            geolocation=geolocation,
+            timezone=timezone,
+            storage=storage,
+            webhook_url=webhook_url,
+            job_id=job_id,
+            page_size=page_size,
+            landscape=landscape,
+            margins=margins,
+        )
+
+        raw = await self._request("POST", "/v1/screenshot", opts.to_dict())
+        if storage is not None or webhook_url is not None or job_id is not None:
+            return json.loads(raw)
+        return raw
+
+    # ── PDF ─────────────────────────────────────────────────────────────────
+
+    async def pdf(
+        self,
+        url: Optional[str] = None,
+        html: Optional[str] = None,
+        page_size: str = "a4",
+        landscape: bool = False,
+        margins: Optional[Dict[str, str]] = None,
+        header_template: Optional[str] = None,
+        footer_template: Optional[str] = None,
+        display_header_footer: bool = False,
+        scale: Optional[float] = None,
+        delay: int = 0,
+        wait_for_selector: Optional[str] = None,
+    ) -> bytes:
+        """Convert a URL or HTML string to a PDF asynchronously.
+
+        Args and returns are identical to :meth:`SnapAPI.pdf`.
+        """
+        if not url and not html:
+            raise ValueError("One of url or html is required")
+
+        payload: Dict[str, Any] = {"format": "pdf", "pageSize": page_size}
         if url:
             payload["url"] = url
         if html:
             payload["html"] = html
-        if markdown:
-            payload["markdown"] = markdown
-        if quality is not None:
-            payload["quality"] = quality
-        if device:
-            payload["device"] = device
-        payload["width"] = width
-        payload["height"] = height
-        if device_scale_factor != 1.0:
-            payload["deviceScaleFactor"] = device_scale_factor
-        if is_mobile:
-            payload["isMobile"] = True
-        if has_touch:
-            payload["hasTouch"] = True
-        if full_page:
-            payload["fullPage"] = True
-        if full_page_scroll_delay is not None:
-            payload["fullPageScrollDelay"] = full_page_scroll_delay
-        if full_page_max_height is not None:
-            payload["fullPageMaxHeight"] = full_page_max_height
-        if selector:
-            payload["selector"] = selector
-        if delay > 0:
-            payload["delay"] = delay
-        if timeout != 30000:
-            payload["timeout"] = timeout
-        if wait_until:
-            payload["waitUntil"] = wait_until
-        if wait_for_selector:
-            payload["waitForSelector"] = wait_for_selector
-        if dark_mode:
-            payload["darkMode"] = True
-        if reduced_motion:
-            payload["reducedMotion"] = True
-        if css:
-            payload["css"] = css
-        if javascript:
-            payload["javascript"] = javascript
-        if hide_selectors:
-            payload["hideSelectors"] = hide_selectors
-        if click_selector:
-            payload["clickSelector"] = click_selector
-        if block_ads:
-            payload["blockAds"] = True
-        if block_trackers:
-            payload["blockTrackers"] = True
-        if block_cookie_banners:
-            payload["blockCookieBanners"] = True
-        if block_chat_widgets:
-            payload["blockChatWidgets"] = True
-        if user_agent:
-            payload["userAgent"] = user_agent
-        if extra_headers:
-            payload["extraHeaders"] = extra_headers
-        if cookies:
-            payload["cookies"] = [c.to_dict() for c in cookies]
-        if http_auth:
-            payload["httpAuth"] = http_auth.to_dict()
-        if proxy:
-            payload["proxy"] = proxy.to_dict()
-        if premium_proxy is not None:
-            payload["premiumProxy"] = premium_proxy
-        if geolocation:
-            payload["geolocation"] = geolocation.to_dict()
-        if timezone:
-            payload["timezone"] = timezone
-        if pdf_options:
-            payload["pdfOptions"] = pdf_options.to_dict()
-        if page_size:
-            payload["pageSize"] = page_size
-        if landscape is not None:
-            payload["landscape"] = landscape
+        if landscape:
+            payload["landscape"] = True
         if margins:
             payload["margins"] = margins
-        if storage is not None:
-            payload["storage"] = storage
-        if webhook_url:
-            payload["webhookUrl"] = webhook_url
-        if job_id:
-            payload["jobId"] = job_id
-        if include_metadata:
-            payload["includeMetadata"] = True
-        if response_type != "binary":
-            payload["responseType"] = response_type
+        if header_template:
+            payload["headerTemplate"] = header_template
+        if footer_template:
+            payload["footerTemplate"] = footer_template
+        if display_header_footer:
+            payload["displayHeaderFooter"] = True
+        if scale is not None:
+            payload["scale"] = scale
+        if delay > 0:
+            payload["delay"] = delay
+        if wait_for_selector:
+            payload["waitForSelector"] = wait_for_selector
 
-        raw = await self._request("POST", "/v1/screenshot", payload)
-
-        if storage is not None or webhook_url is not None or job_id is not None:
-            return json.loads(raw)
-        if response_type in ("json", "base64"):
-            return json.loads(raw)
-        return raw
+        return await self._request("POST", "/v1/screenshot", payload)
 
     # ── Scrape ──────────────────────────────────────────────────────────────
 
-    async def scrape(self, options: ScrapeOptions) -> ScrapeResult:
-        """Scrape a page (or multiple pages) asynchronously."""
-        if not options.url:
-            raise ValueError("url is required")
-        raw = await self._request("POST", "/v1/scrape", options.to_dict())
+    async def scrape(
+        self,
+        url: str,
+        type: str = "text",
+        pages: int = 1,
+        wait_ms: Optional[int] = None,
+        proxy: Optional[str] = None,
+        premium_proxy: Optional[bool] = None,
+        block_resources: bool = False,
+        locale: Optional[str] = None,
+    ) -> ScrapeResult:
+        """Scrape text, HTML, or links asynchronously.
+
+        Args and returns are identical to :meth:`SnapAPI.scrape`.
+        """
+        opts = ScrapeOptions(
+            url=url,
+            pages=pages,
+            type=type,  # type: ignore[arg-type]
+            wait_ms=wait_ms,
+            proxy=proxy,
+            premium_proxy=premium_proxy,
+            block_resources=block_resources,
+            locale=locale,
+        )
+        raw = await self._request("POST", "/v1/scrape", opts.to_dict())
         return ScrapeResult.from_dict(json.loads(raw))
 
     # ── Extract ─────────────────────────────────────────────────────────────
 
-    async def extract(self, options: ExtractOptions) -> ExtractResult:
-        """Extract content from a webpage asynchronously."""
-        if not options.url:
-            raise ValueError("url is required")
-        raw = await self._request("POST", "/v1/extract", options.to_dict())
+    async def extract(
+        self,
+        url: str,
+        type: str = "markdown",
+        selector: Optional[str] = None,
+        wait_for: Optional[str] = None,
+        timeout: Optional[int] = None,
+        dark_mode: bool = False,
+        block_ads: bool = False,
+        block_cookie_banners: bool = False,
+        include_images: Optional[bool] = None,
+        max_length: Optional[int] = None,
+        clean_output: Optional[bool] = None,
+    ) -> ExtractResult:
+        """Extract content asynchronously.
+
+        Args and returns are identical to :meth:`SnapAPI.extract`.
+        """
+        opts = ExtractOptions(
+            url=url,
+            type=type,  # type: ignore[arg-type]
+            selector=selector,
+            wait_for=wait_for,
+            timeout=timeout,
+            dark_mode=dark_mode,
+            block_ads=block_ads,
+            block_cookie_banners=block_cookie_banners,
+            include_images=include_images,
+            max_length=max_length,
+            clean_output=clean_output,
+        )
+        raw = await self._request("POST", "/v1/extract", opts.to_dict())
         return ExtractResult.from_dict(json.loads(raw))
+
+    # ── Video ───────────────────────────────────────────────────────────────
+
+    async def video(
+        self,
+        url: str,
+        format: str = "mp4",
+        width: int = 1280,
+        height: int = 720,
+        duration: int = 5,
+        fps: int = 25,
+        scrolling: bool = False,
+        scroll_speed: Optional[int] = None,
+        scroll_delay: Optional[int] = None,
+        scroll_duration: Optional[int] = None,
+        scroll_by: Optional[int] = None,
+        scroll_easing: Optional[str] = None,
+        scroll_back: bool = True,
+        scroll_complete: bool = True,
+        dark_mode: bool = False,
+        block_ads: bool = False,
+        block_cookie_banners: bool = False,
+        delay: int = 0,
+    ) -> bytes:
+        """Record a video asynchronously.
+
+        Args and returns are identical to :meth:`SnapAPI.video`.
+        """
+        opts = VideoOptions(
+            url=url,
+            format=format,  # type: ignore[arg-type]
+            width=width,
+            height=height,
+            duration=duration,
+            fps=fps,
+            scrolling=scrolling,
+            scroll_speed=scroll_speed,
+            scroll_delay=scroll_delay,
+            scroll_duration=scroll_duration,
+            scroll_by=scroll_by,
+            scroll_easing=scroll_easing,  # type: ignore[arg-type]
+            scroll_back=scroll_back,
+            scroll_complete=scroll_complete,
+            dark_mode=dark_mode,
+            block_ads=block_ads,
+            block_cookie_banners=block_cookie_banners,
+            delay=delay,
+        )
+        return await self._request("POST", "/v1/video", opts.to_dict())
+
+    # ── OG Image ────────────────────────────────────────────────────────────
+
+    async def og_image(
+        self,
+        url: str,
+        format: str = "png",
+        width: int = 1200,
+        height: int = 630,
+    ) -> bytes:
+        """Generate an OG image asynchronously."""
+        return await self._request(
+            "POST",
+            "/v1/screenshot",
+            {"url": url, "format": format, "width": width, "height": height},
+        )
 
     # ── Analyze ─────────────────────────────────────────────────────────────
 
-    async def analyze(self, options: AnalyzeOptions) -> AnalyzeResult:
-        """Analyze a webpage with an LLM asynchronously (BYOK)."""
-        if not options.url:
-            raise ValueError("url is required")
-        if not options.prompt:
-            raise ValueError("prompt is required")
-        if not options.api_key:
-            raise ValueError("api_key (LLM provider key) is required")
-        raw = await self._request("POST", "/v1/analyze", options.to_dict())
+    async def analyze(
+        self,
+        url: str,
+        prompt: str,
+        provider: Optional[str] = None,
+        api_key: Optional[str] = None,
+        model: Optional[str] = None,
+        json_schema: Optional[Dict[str, Any]] = None,
+        include_screenshot: Optional[bool] = None,
+        include_metadata: Optional[bool] = None,
+        max_content_length: Optional[int] = None,
+        timeout: Optional[int] = None,
+        block_ads: bool = False,
+        block_cookie_banners: bool = False,
+        wait_for: Optional[str] = None,
+    ) -> "AnalyzeResult":
+        """Analyze a web page with an LLM asynchronously."""
+        opts = AnalyzeOptions(
+            url=url,
+            prompt=prompt,
+            provider=provider,  # type: ignore[arg-type]
+            api_key=api_key,
+            model=model,
+            json_schema=json_schema,
+            include_screenshot=include_screenshot,
+            include_metadata=include_metadata,
+            max_content_length=max_content_length,
+            timeout=timeout,
+            block_ads=block_ads,
+            block_cookie_banners=block_cookie_banners,
+            wait_for=wait_for,
+        )
+        raw = await self._request("POST", "/v1/analyze", opts.to_dict())
         return AnalyzeResult.from_dict(json.loads(raw))
+
+    # ── Quota ───────────────────────────────────────────────────────────────
+
+    async def quota(self) -> UsageResult:
+        """Get your API usage asynchronously."""
+        raw = await self._request("GET", "/v1/quota")
+        return UsageResult.from_dict(json.loads(raw))
+
+    async def ping(self) -> Dict[str, Any]:
+        """Check API availability asynchronously."""
+        raw = await self._request("GET", "/v1/ping")
+        return json.loads(raw)  # type: ignore[no-any-return]
 
     # ── Storage ─────────────────────────────────────────────────────────────
 
     async def storage_list_files(self, limit: int = 50, offset: int = 0) -> StorageListResult:
-        """List stored files."""
+        """List stored files asynchronously."""
         raw = await self._request("GET", f"/v1/storage/files?limit={limit}&offset={offset}")
         return StorageListResult.from_dict(json.loads(raw))
 
     async def storage_get_file(self, file_id: str) -> StorageFile:
-        """Get a specific stored file."""
+        """Get a stored file asynchronously."""
         raw = await self._request("GET", f"/v1/storage/files/{file_id}")
         return StorageFile.from_dict(json.loads(raw))
 
     async def storage_delete_file(self, file_id: str) -> DeleteResult:
-        """Delete a stored file."""
+        """Delete a stored file asynchronously."""
         raw = await self._request("DELETE", f"/v1/storage/files/{file_id}")
         return DeleteResult.from_dict(json.loads(raw))
 
     async def storage_get_usage(self) -> StorageUsage:
-        """Get storage usage for this account."""
+        """Get storage usage asynchronously."""
         raw = await self._request("GET", "/v1/storage/usage")
         return StorageUsage.from_dict(json.loads(raw))
 
     async def storage_configure_s3(self, config: S3Config) -> Dict[str, Any]:
-        """Configure a custom S3-compatible storage backend."""
+        """Configure S3 asynchronously."""
         raw = await self._request("POST", "/v1/storage/s3", config.to_dict())
-        return json.loads(raw)
+        return json.loads(raw)  # type: ignore[no-any-return]
 
     async def storage_test_s3(self) -> S3TestResult:
-        """Test the custom S3 connection."""
+        """Test S3 connection asynchronously."""
         raw = await self._request("POST", "/v1/storage/s3/test", {})
         return S3TestResult.from_dict(json.loads(raw))
 
     # ── Scheduled ───────────────────────────────────────────────────────────
 
     async def scheduled_create(self, options: CreateScheduledOptions) -> ScheduledScreenshot:
-        """Create a scheduled screenshot job."""
+        """Create a scheduled job asynchronously."""
         raw = await self._request("POST", "/v1/scheduled", options.to_dict())
         return ScheduledScreenshot.from_dict(json.loads(raw))
 
     async def scheduled_list(self) -> List[ScheduledScreenshot]:
-        """List all scheduled screenshot jobs."""
+        """List scheduled jobs asynchronously."""
         raw = await self._request("GET", "/v1/scheduled")
         data = json.loads(raw)
         items = data if isinstance(data, list) else data.get("jobs", [])
         return [ScheduledScreenshot.from_dict(j) for j in items]
 
     async def scheduled_delete(self, job_id: str) -> DeleteResult:
-        """Delete a scheduled screenshot job."""
+        """Delete a scheduled job asynchronously."""
         raw = await self._request("DELETE", f"/v1/scheduled/{job_id}")
         return DeleteResult.from_dict(json.loads(raw))
 
     # ── Webhooks ────────────────────────────────────────────────────────────
 
     async def webhooks_create(self, options: CreateWebhookOptions) -> Webhook:
-        """Register a webhook endpoint."""
+        """Register a webhook asynchronously."""
         raw = await self._request("POST", "/v1/webhooks", options.to_dict())
         return Webhook.from_dict(json.loads(raw))
 
     async def webhooks_list(self) -> List[Webhook]:
-        """List registered webhooks."""
+        """List webhooks asynchronously."""
         raw = await self._request("GET", "/v1/webhooks")
         data = json.loads(raw)
         items = data if isinstance(data, list) else data.get("webhooks", [])
         return [Webhook.from_dict(w) for w in items]
 
     async def webhooks_delete(self, webhook_id: str) -> DeleteResult:
-        """Delete a webhook."""
+        """Delete a webhook asynchronously."""
         raw = await self._request("DELETE", f"/v1/webhooks/{webhook_id}")
         return DeleteResult.from_dict(json.loads(raw))
 
-    # ── API Keys ────────────────────────────────────────────────────────────
+    # ── API Keys ─────────────────────────────────────────────────────────────
 
     async def keys_list(self) -> List[ApiKey]:
-        """List API keys (values are masked)."""
+        """List API keys asynchronously."""
         raw = await self._request("GET", "/v1/keys")
         data = json.loads(raw)
         items = data if isinstance(data, list) else data.get("keys", [])
         return [ApiKey.from_dict(k) for k in items]
 
     async def keys_create(self, name: str) -> CreateApiKeyResult:
-        """Create a new API key. Full key is returned only once."""
+        """Create an API key asynchronously."""
         raw = await self._request("POST", "/v1/keys", {"name": name})
         return CreateApiKeyResult.from_dict(json.loads(raw))
 
     async def keys_delete(self, key_id: str) -> DeleteResult:
-        """Delete an API key."""
+        """Delete an API key asynchronously."""
         raw = await self._request("DELETE", f"/v1/keys/{key_id}")
         return DeleteResult.from_dict(json.loads(raw))
 
-    async def close(self) -> None:
-        """Close the underlying aiohttp session."""
-        if self._session:
-            await self._session.close()
-            self._session = None
+    # ── Internal HTTP ────────────────────────────────────────────────────────
+
+    async def _request(
+        self,
+        method: str,
+        path: str,
+        data: Optional[Dict[str, Any]] = None,
+    ) -> bytes:
+        """Execute an async HTTP request with retry logic."""
+        url = f"{self.base_url}{path}"
+        content = json.dumps(data).encode() if data is not None else None
+        client = self._get_client()
+
+        attempt = 0
+        while True:
+            try:
+                resp = await client.request(method, url, content=content)
+            except httpx.TimeoutException as exc:
+                error: SnapAPIError = TimeoutError(f"Request timed out: {exc}")
+                if attempt < self.max_retries and should_retry(error):
+                    attempt += 1
+                    await asyncio.sleep(compute_backoff(attempt, self.retry_delay))
+                    continue
+                raise error from exc
+            except httpx.RequestError as exc:
+                error = NetworkError(f"Network error: {exc}")
+                if attempt < self.max_retries and should_retry(error):
+                    attempt += 1
+                    await asyncio.sleep(compute_backoff(attempt, self.retry_delay))
+                    continue
+                raise error from exc
+
+            if resp.status_code >= 400:
+                parsed = parse_error_response(
+                    resp.status_code,
+                    resp.content,
+                    dict(resp.headers),
+                )
+                if attempt < self.max_retries and should_retry(parsed):
+                    if hasattr(parsed, "retry_after"):
+                        wait = min(parsed.retry_after, 30.0)  # type: ignore[attr-defined]
+                    else:
+                        wait = compute_backoff(attempt + 1, self.retry_delay)
+                    attempt += 1
+                    await asyncio.sleep(wait)
+                    continue
+                raise parsed
+
+            return resp.content

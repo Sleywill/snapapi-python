@@ -1,15 +1,16 @@
 """
-SnapAPI Python SDK v2.0.0
-Lightning-fast screenshot, scrape, extract, and AI-analyze API for developers.
+SnapAPI Python SDK v3.0.0
 
-Usage::
+Lightning-fast screenshot, scrape, extract, PDF, video, and AI-analyze API.
+
+Sync usage::
 
     from snapapi import SnapAPI
 
-    client = SnapAPI(api_key='sk_live_xxx')
-    screenshot = client.screenshot(url='https://example.com')
-    with open('shot.png', 'wb') as f:
-        f.write(screenshot)
+    with SnapAPI(api_key="sk_live_...") as snap:
+        buf = snap.screenshot(url="https://example.com")
+        with open("shot.png", "wb") as f:
+            f.write(buf)
 
 Async usage::
 
@@ -17,18 +18,25 @@ Async usage::
     from snapapi import AsyncSnapAPI
 
     async def main():
-        async with AsyncSnapAPI(api_key='sk_live_xxx') as client:
-            buf = await client.screenshot(url='https://example.com')
+        async with AsyncSnapAPI(api_key="sk_live_...") as snap:
+            buf = await snap.screenshot(url="https://example.com")
+            with open("shot.png", "wb") as f:
+                f.write(buf)
 
     asyncio.run(main())
 """
 
-from .client import SnapAPI, SnapAPIError
-
-try:
-    from .async_client import AsyncSnapAPI
-except ImportError:
-    AsyncSnapAPI = None  # type: ignore[assignment,misc]
+from .client import SnapAPI
+from .async_client import AsyncSnapAPI
+from .exceptions import (
+    SnapAPIError,
+    RateLimitError,
+    AuthenticationError,
+    ValidationError,
+    QuotaExceededError,
+    TimeoutError,
+    NetworkError,
+)
 from .types import (
     # Core
     ScreenshotOptions,
@@ -41,9 +49,11 @@ from .types import (
     ThumbnailOptions,
     ExtractMetadata,
     DevicePreset,
-    # Video / Batch (legacy)
+    # Video
     VideoOptions,
     VideoResult,
+    ScrollEasing,
+    # Batch (legacy)
     BatchOptions,
     BatchResult,
     # Scrape
@@ -58,6 +68,8 @@ from .types import (
     AnalyzeOptions,
     AnalyzeResult,
     AnalyzeProvider,
+    # Usage
+    UsageResult,
     # Storage (v2)
     StorageFile,
     StorageListResult,
@@ -76,13 +88,20 @@ from .types import (
     CreateApiKeyResult,
 )
 
-__version__ = "2.0.0"
+__version__ = "3.0.0"
 
 __all__ = [
     # Clients
     "SnapAPI",
     "AsyncSnapAPI",
+    # Exceptions
     "SnapAPIError",
+    "RateLimitError",
+    "AuthenticationError",
+    "ValidationError",
+    "QuotaExceededError",
+    "TimeoutError",
+    "NetworkError",
     # Core types
     "ScreenshotOptions",
     "ScreenshotResult",
@@ -94,9 +113,11 @@ __all__ = [
     "ThumbnailOptions",
     "ExtractMetadata",
     "DevicePreset",
-    # Video / Batch
+    # Video
     "VideoOptions",
     "VideoResult",
+    "ScrollEasing",
+    # Batch (legacy)
     "BatchOptions",
     "BatchResult",
     # Scrape
@@ -111,6 +132,8 @@ __all__ = [
     "AnalyzeOptions",
     "AnalyzeResult",
     "AnalyzeProvider",
+    # Usage
+    "UsageResult",
     # Storage (v2)
     "StorageFile",
     "StorageListResult",
