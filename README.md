@@ -1,7 +1,6 @@
-# snapapi
+# SnapAPI Python SDK
 
-Official Python SDK for [SnapAPI](https://snapapi.pics) — lightning-fast
-screenshot, scrape, extract, PDF, video, and AI-analyze API.
+Official Python SDK for [SnapAPI](https://snapapi.pics) — the lightning-fast screenshot, scrape, extract, PDF, video, and AI-analyze API.
 
 ## Installation
 
@@ -9,20 +8,22 @@ screenshot, scrape, extract, PDF, video, and AI-analyze API.
 pip install snapapi
 ```
 
-`httpx` is included as a dependency. No extra installs needed for async support.
-
 ## Quick Start
 
 ```python
 from snapapi import SnapAPI
 
 with SnapAPI(api_key="sk_live_...") as snap:
-    buf = snap.screenshot(url="https://example.com")
-    with open("shot.png", "wb") as f:
-        f.write(buf)
+    # Take a screenshot
+    data = snap.screenshot(url="https://example.com")
+    with open("screenshot.png", "wb") as f:
+        f.write(data)
+
+    # Or save directly to a file
+    snap.screenshot_to_file("https://example.com", "./screenshot.png")
 ```
 
-## Async
+### Async Usage
 
 ```python
 import asyncio
@@ -30,322 +31,327 @@ from snapapi import AsyncSnapAPI
 
 async def main():
     async with AsyncSnapAPI(api_key="sk_live_...") as snap:
-        buf = await snap.screenshot(url="https://example.com")
-        with open("shot.png", "wb") as f:
-            f.write(buf)
+        data = await snap.screenshot(url="https://example.com")
+        with open("screenshot.png", "wb") as f:
+            f.write(data)
 
 asyncio.run(main())
 ```
+
+## Features
+
+- **Both sync and async clients** — `SnapAPI` and `AsyncSnapAPI`
+- **Full type hints** on every method and response
+- **Dataclass response types** — structured, IDE-friendly responses
+- **Automatic retries** with exponential backoff on 429 / 5xx
+- **Rate limit handling** with `Retry-After` header support
+- **Context manager support** — automatic connection cleanup
+- **All endpoints** — screenshot, scrape, extract, PDF, video, OG image, analyze
+- **Sub-namespaces** — storage, scheduled jobs, webhooks, API key management
+- **Custom typed exceptions** per error category
+- Python 3.8+
 
 ## Configuration
 
 ```python
 snap = SnapAPI(
-    api_key="sk_live_...",             # required
-    base_url="https://snapapi.pics",   # optional override
-    timeout=60.0,                       # seconds (default: 60)
-    max_retries=3,                      # retries on 429 / 5xx (default: 3)
-    retry_delay=0.5,                    # initial backoff seconds (default: 0.5)
+    api_key="sk_live_...",
+    base_url="https://api.snapapi.pics",  # Default
+    timeout=60.0,                          # 60s default
+    max_retries=3,                         # Auto-retry on 429 / 5xx
+    retry_delay=0.5,                       # Initial backoff (doubles each retry)
 )
 ```
 
----
+## API Reference
 
-## Methods
+### Screenshot
 
-### `snap.screenshot()`
-
-Capture a screenshot of a URL, HTML string, or Markdown string.
-
-Returns `bytes` for image/PDF responses, or `dict` when `storage` / `webhook_url` is set.
+Capture a screenshot of any URL, raw HTML, or Markdown.
 
 ```python
-# Basic PNG
-buf = snap.screenshot(url="https://example.com")
+# Basic PNG screenshot
+data = snap.screenshot(url="https://example.com")
 
-# Full-page dark-mode WebP
-buf = snap.screenshot(
-    url="https://example.com",
+# Full-page dark-mode WebP with ad blocking
+data = snap.screenshot(
+    url="https://github.com",
     format="webp",
     full_page=True,
     dark_mode=True,
     block_ads=True,
     block_cookie_banners=True,
-    quality=85,
 )
 
-# iPhone 15 Pro viewport
-buf = snap.screenshot(url="https://example.com", device="iphone-15-pro")
-
-# Capture a specific element
-buf = snap.screenshot(url="https://example.com", selector="#pricing-table")
+# Custom viewport (mobile)
+data = snap.screenshot(
+    url="https://example.com",
+    device="iphone-15-pro",
+)
 
 # From raw HTML
-buf = snap.screenshot(html="<h1>Hello!</h1>", width=800, height=200)
-
-# Store in SnapAPI cloud
-result = snap.screenshot(
-    url="https://example.com",
-    storage={"destination": "snapapi"},
+data = snap.screenshot(
+    html='<h1 style="color: red;">Hello World</h1>',
+    width=800,
+    height=600,
 )
-print(result["url"])  # permanent URL
 
-# Async delivery via webhook
-result = snap.screenshot(
-    url="https://example.com",
-    webhook_url="https://my-app.com/hooks/snap",
+# Store in SnapAPI cloud (returns URL instead of binary)
+result = snap.screenshot_to_storage(url="https://example.com")
+print(result.url)  # Public URL
+
+# Save directly to file
+snap.screenshot_to_file("https://example.com", "./output/shot.png")
+snap.screenshot_to_file(
+    "https://example.com",
+    "./output/full.webp",
+    format="webp",
+    full_page=True,
 )
-print(result["jobId"])
 ```
 
-**Key parameters:**
+**Key screenshot options:**
 
 | Parameter | Type | Default | Description |
-|---|---|---|---|
-| `url` | `str` | — | Page URL |
+|-----------|------|---------|-------------|
+| `url` | `str` | — | URL to capture |
 | `html` | `str` | — | Raw HTML to render |
 | `markdown` | `str` | — | Markdown to render |
-| `format` | `str` | `'png'` | `'png'`, `'jpeg'`, `'webp'`, `'avif'`, `'pdf'` |
-| `quality` | `int` | — | Image quality 1–100 |
-| `device` | `str` | — | Device preset (e.g. `'iphone-15-pro'`) |
-| `width` / `height` | `int` | 1280 / 800 | Viewport dimensions |
+| `format` | `str` | `'png'` | `png`, `jpeg`, `webp`, `avif`, `pdf` |
+| `quality` | `int` | — | JPEG/WebP quality 1–100 |
+| `device` | `str` | — | Named device preset |
+| `width` | `int` | `1280` | Viewport width |
+| `height` | `int` | `800` | Viewport height |
 | `full_page` | `bool` | `False` | Capture full scrollable page |
-| `selector` | `str` | — | Capture only this CSS element |
-| `delay` | `int` | `0` | Wait before capture (ms) |
-| `wait_until` | `str` | — | `'load'`, `'domcontentloaded'`, `'networkidle'` |
-| `dark_mode` | `bool` | `False` | Dark colour scheme |
-| `css` | `str` | — | Inject custom CSS |
-| `javascript` | `str` | — | Execute JS before capture |
-| `hide_selectors` | `list[str]` | — | Elements to hide |
+| `selector` | `str` | — | CSS selector to capture |
+| `delay` | `int` | `0` | Delay before capture (ms) |
+| `wait_until` | `str` | — | `load`, `domcontentloaded`, `networkidle` |
+| `dark_mode` | `bool` | `False` | Dark color scheme |
+| `css` | `str` | — | Custom CSS to inject |
+| `javascript` | `str` | — | JS to execute before capture |
 | `block_ads` | `bool` | `False` | Block ad networks |
-| `block_trackers` | `bool` | `False` | Block tracking scripts |
 | `block_cookie_banners` | `bool` | `False` | Block consent popups |
-| `proxy` | `ProxyConfig` | — | Custom proxy |
-| `premium_proxy` | `bool` | `False` | SnapAPI rotating proxy |
-| `geolocation` | `Geolocation` | — | GPS coordinates |
-| `timezone` | `str` | — | IANA timezone |
-| `http_auth` | `HttpAuth` | — | HTTP Basic Auth |
-| `cookies` | `list[Cookie]` | — | Inject cookies |
-| `extra_headers` | `dict` | — | Custom request headers |
-| `storage` | `dict` | — | Store to cloud: `{'destination': 'snapapi'}` |
-| `webhook_url` | `str` | — | Async delivery |
-| `page_size` | `str` | — | PDF page size (e.g. `'a4'`) |
-| `landscape` | `bool` | — | PDF landscape orientation |
-| `margins` | `dict` | — | PDF margins: `{'top': '10mm', ...}` |
+| `user_agent` | `str` | — | Custom User-Agent |
+| `extra_headers` | `dict` | — | Extra HTTP headers |
+| `cookies` | `list` | — | Cookies to inject |
+| `proxy` | `dict` | — | Custom proxy config |
+| `premium_proxy` | `bool` | — | Use SnapAPI rotating proxy |
 
----
+### Scrape
 
-### `snap.pdf()`
-
-Convert a URL or HTML string to a PDF file.
-
-```python
-pdf_bytes = snap.pdf(
-    url="https://example.com",
-    page_size="a4",
-    landscape=False,
-    margins={"top": "20mm", "bottom": "20mm"},
-)
-with open("output.pdf", "wb") as f:
-    f.write(pdf_bytes)
-
-# From HTML
-pdf_bytes = snap.pdf(html="<h1>Invoice</h1>", page_size="letter")
-```
-
----
-
-### `snap.scrape()`
-
-Scrape text, HTML, or links from one or more pages.
+Scrape text, HTML, or links from web pages using a stealth browser.
 
 ```python
 result = snap.scrape(
     url="https://news.ycombinator.com",
-    type="links",          # 'text' | 'html' | 'links'
-    pages=1,
-    wait_ms=1000,
+    type="links",
+    pages=3,
     block_resources=True,
 )
+
 for page in result.results:
-    print(f"Page {page.page}:", page.data[:200])
+    print(f"Page {page.page}: {page.data[:100]}...")
 ```
 
----
+### Extract
 
-### `snap.extract()`
-
-Extract structured content — text, markdown, article, links, images, metadata,
-or structured data.
+Extract structured content — markdown, text, article, links, images, or metadata.
 
 ```python
 result = snap.extract(
-    url="https://example.com/post",
-    type="markdown",       # 'text'|'markdown'|'article'|'html'|'links'|'images'|'metadata'|'structured'
+    url="https://example.com/blog/post",
+    type="markdown",
     clean_output=True,
-    max_length=10_000,
+    include_images=False,
 )
-print(result.content)
+
+print(result.data)  # Clean markdown content
 ```
 
----
+Extract convenience methods:
 
-### `snap.video()`
+```python
+result = snap.extract_markdown("https://example.com")
+result = snap.extract_article("https://example.com/post")
+result = snap.extract_text("https://example.com")
+result = snap.extract_links("https://example.com")
+result = snap.extract_images("https://example.com")
+result = snap.extract_metadata("https://example.com")
+```
+
+### PDF
+
+Convert URLs or HTML to PDF documents.
+
+```python
+# From URL
+pdf_data = snap.pdf(
+    url="https://example.com/invoice",
+    page_size="a4",
+    margin_top="20mm",
+    margin_bottom="20mm",
+)
+with open("invoice.pdf", "wb") as f:
+    f.write(pdf_data)
+
+# From HTML
+pdf_data = snap.pdf(
+    html="<h1>Invoice #1234</h1><p>Total: $99.00</p>",
+    landscape=True,
+)
+
+# Save directly to file
+snap.pdf_to_file("https://example.com", "./output.pdf")
+```
+
+### Video
 
 Record a video of a live webpage.
 
 ```python
-video_bytes = snap.video(
+video_data = snap.video(
     url="https://example.com",
     format="mp4",
-    duration=5,
+    duration=10,
     scrolling=True,
-    scroll_easing="ease_in_out",
+    scroll_speed=200,
 )
 with open("recording.mp4", "wb") as f:
-    f.write(video_bytes)
+    f.write(video_data)
 ```
 
----
+### OG Image
 
-### `snap.og_image()`
-
-Generate an Open Graph image (1200 x 630 by default).
+Generate Open Graph social images.
 
 ```python
-og_bytes = snap.og_image(url="https://example.com")
+og_data = snap.og_image(
+    url="https://example.com",
+    format="png",
+    width=1200,
+    height=630,
+)
 with open("og.png", "wb") as f:
-    f.write(og_bytes)
+    f.write(og_data)
 ```
 
----
+### Analyze (AI)
 
-### `snap.analyze()`
-
-Analyze a webpage with an LLM (BYOK — bring your own key).
+Analyze webpages with an LLM — bring your own API key.
 
 ```python
 result = snap.analyze(
     url="https://example.com/pricing",
-    prompt="List all pricing tiers and their monthly cost.",
+    prompt="Extract all pricing tiers as JSON with name, price, and features.",
     provider="openai",
-    api_key="sk-...",
+    api_key=os.environ["OPENAI_API_KEY"],
     json_schema={
-        "type": "object",
-        "properties": {"tiers": {"type": "array"}},
+        "type": "array",
+        "items": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string"},
+                "price": {"type": "string"},
+                "features": {"type": "array", "items": {"type": "string"}},
+            },
+        },
     },
 )
-print(result.result)
+print(result.analysis)
 ```
 
----
-
-### `snap.quota()`
-
-Get your API usage for the current billing period.
+### Usage / Quota
 
 ```python
-usage = snap.quota()
-print(f"{usage.used} / {usage.limit} calls used ({usage.remaining} remaining)")
+usage = snap.get_usage()
+print(f"{usage.used} / {usage.limit} API calls used (resets {usage.reset_at})")
 ```
 
----
-
-### `snap.storage_*()`
-
-Manage files stored in SnapAPI cloud.
+### Ping
 
 ```python
-# List files
-result = snap.storage_list_files(limit=50, offset=0)
+result = snap.ping()
+# PingResult(status='ok', timestamp=1710540000000)
+```
 
-# Get file metadata + download URL
-file = snap.storage_get_file("file_id")
-print(file.url)
+## Sub-Namespaces
 
-# Delete
-snap.storage_delete_file("file_id")
+### Storage
 
-# Usage
-usage = snap.storage_get_usage()
-print(f"{usage.used_formatted} / {usage.limit_formatted}")
+```python
+# List stored files
+response = snap.storage.list_files(limit=50, offset=0)
+for f in response.files:
+    print(f.id, f.url)
+
+# Get a specific file
+file = snap.storage.get_file("file_abc")
+
+# Delete a file
+snap.storage.delete_file("file_abc")
+
+# Get storage usage
+usage = snap.storage.get_usage()
 
 # Configure custom S3
-from snapapi import S3Config
-snap.storage_configure_s3(S3Config(
+snap.storage.configure_s3(
     s3_bucket="my-bucket",
     s3_region="us-east-1",
-    s3_access_key_id="AKIA...",
-    s3_secret_access_key="secret",
-))
-result = snap.storage_test_s3()
-print(result.success)
+    s3_access_key_id="...",
+    s3_secret_access_key="...",
+)
 ```
 
----
-
-### `snap.scheduled_*()`
-
-Manage recurring screenshot jobs.
+### Scheduled Screenshots
 
 ```python
-from snapapi import CreateScheduledOptions
-
-job = snap.scheduled_create(CreateScheduledOptions(
+# Create a scheduled job (runs daily at 9am)
+job = snap.scheduled.create(
     url="https://example.com",
     cron_expression="0 9 * * *",
     format="png",
-    full_page=True,
-))
-print(job.id, job.next_run)
+    webhook_url="https://my-app.com/webhook",
+)
 
-jobs = snap.scheduled_list()
-snap.scheduled_delete(job.id)
+# List all jobs
+jobs = snap.scheduled.list()
+
+# Delete a job
+snap.scheduled.delete(job.id)
 ```
 
----
-
-### `snap.webhooks_*()`
-
-Manage webhook endpoints.
+### Webhooks
 
 ```python
-from snapapi import CreateWebhookOptions
-
-wh = snap.webhooks_create(CreateWebhookOptions(
-    url="https://my-app.com/hooks/snap",
+wh = snap.webhooks.create(
+    url="https://my-app.com/hooks/snapapi",
     events=["screenshot.done"],
-    secret="signing-secret",
-))
+    secret="my-signing-secret",
+)
 
-webhooks = snap.webhooks_list()
-snap.webhooks_delete(wh.id)
+all_wh = snap.webhooks.list()
+snap.webhooks.delete(wh.id)
 ```
 
----
-
-### `snap.keys_*()`
-
-Manage API keys.
+### API Keys
 
 ```python
-keys = snap.keys_list()
-result = snap.keys_create("production")
-print(result.key)  # full key — store securely!
-snap.keys_delete(result.id)
-```
+new_key = snap.keys.create("production")
+print(new_key.key)  # Full key — store securely!
 
----
+all_keys = snap.keys.list()
+snap.keys.delete("key_id")
+```
 
 ## Error Handling
 
-All errors extend `SnapAPIError` and include `.code` and `.status_code`:
+All exceptions extend `SnapAPIError` with `code`, `status_code`, and `message` fields.
 
 ```python
 from snapapi import (
     SnapAPIError,
-    RateLimitError,
     AuthenticationError,
+    RateLimitError,
     ValidationError,
     QuotaExceededError,
     TimeoutError,
@@ -353,76 +359,127 @@ from snapapi import (
 )
 
 try:
-    buf = snap.screenshot(url="https://example.com")
+    data = snap.screenshot(url="https://example.com")
+except AuthenticationError:
+    print("Invalid API key. Get yours at https://snapapi.pics")
 except RateLimitError as e:
     print(f"Rate limited. Retry after {e.retry_after}s")
-    # The SDK retries automatically — you only see this if max_retries is exhausted
-except AuthenticationError:
-    print("Invalid API key")
 except QuotaExceededError:
-    print("Quota exhausted — upgrade your plan")
+    print("Quota exceeded. Upgrade at https://snapapi.pics/pricing")
 except ValidationError as e:
-    print("Bad request:", e.fields)
+    print(f"Invalid options: {e.fields}")
 except TimeoutError:
     print("Request timed out")
+except NetworkError as e:
+    print(f"Network error: {e}")
 except SnapAPIError as e:
-    print(f"API error {e.status_code} [{e.code}]: {e.message}")
+    print(f"API error [{e.code}]: {e.message}")
 ```
 
-Rate-limit errors (HTTP 429) and server errors (5xx) are **automatically retried**
-with exponential backoff. The exception is only raised when all retries are exhausted.
+## Advanced Usage
 
----
-
-## Type Hints
-
-The SDK is fully typed. Import types from the top-level package:
+### Proxies
 
 ```python
-from snapapi import (
-    ScreenshotOptions,
-    ScrapeOptions,
-    ScrapeResult,
-    ExtractOptions,
-    ExtractResult,
-    AnalyzeOptions,
-    AnalyzeResult,
-    UsageResult,
-    Cookie,
-    HttpAuth,
-    ProxyConfig,
-    Geolocation,
-    StorageFile,
-    ScheduledScreenshot,
-    Webhook,
-    ApiKey,
+# Custom proxy
+data = snap.screenshot(
+    url="https://example.com",
+    proxy={"server": "http://proxy.example.com:8080", "username": "user", "password": "pass"},
+)
+
+# SnapAPI built-in rotating proxy
+data = snap.screenshot(url="https://example.com", premium_proxy=True)
+```
+
+### Custom Headers and Cookies
+
+```python
+data = snap.screenshot(
+    url="https://app.example.com/dashboard",
+    extra_headers={"Accept-Language": "fr-FR"},
+    cookies=[
+        {
+            "name": "session",
+            "value": "abc123",
+            "domain": "app.example.com",
+            "secure": True,
+            "http_only": True,
+        }
+    ],
 )
 ```
 
----
+### Batch Processing
 
-## Testing
+```python
+import asyncio
+from snapapi import AsyncSnapAPI
 
-```bash
-pip install "snapapi[dev]"
-pytest
+async def batch_screenshots(urls: list[str]):
+    async with AsyncSnapAPI(api_key="sk_live_...") as snap:
+        tasks = [snap.screenshot(url=url) for url in urls]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    for url, result in zip(urls, results):
+        if isinstance(result, Exception):
+            print(f"FAIL: {url} — {result}")
+        else:
+            print(f"OK:   {url} — {len(result)} bytes")
+
+asyncio.run(batch_screenshots([
+    "https://example.com",
+    "https://github.com",
+    "https://python.org",
+]))
 ```
 
-To run the integration tests against the live API:
+### LLM Data Pipeline
 
-```bash
-SNAPAPI_KEY=sk_live_... python tests/integration.py
+```python
+# Extract page content
+content = snap.extract(
+    url="https://example.com/article",
+    type="markdown",
+    clean_output=True,
+)
+
+# Then analyze with AI
+analysis = snap.analyze(
+    url="https://example.com/article",
+    prompt="Summarize the key points and sentiment.",
+    provider="openai",
+    api_key=os.environ["OPENAI_API_KEY"],
+)
+
+print(analysis.analysis)
 ```
 
----
+### Visual Regression Testing
+
+```python
+import hashlib
+
+def check_for_changes(url: str, previous_hash: str) -> str:
+    data = snap.screenshot(url=url, full_page=True)
+    current_hash = hashlib.sha256(data).hexdigest()
+
+    if current_hash != previous_hash:
+        print(f"Page changed: {url}")
+    return current_hash
+```
+
+## Requirements
+
+- Python 3.8+
+- `httpx >= 0.24.0`
 
 ## License
 
-MIT — see [LICENSE](LICENSE)
+MIT — see [LICENSE](./LICENSE).
 
 ## Links
 
-- [snapapi.pics](https://snapapi.pics)
+- [SnapAPI Website](https://snapapi.pics)
 - [API Documentation](https://snapapi.pics/docs)
-- [JavaScript SDK](https://github.com/Sleywill/snapapi-js)
-- [Issues](https://github.com/Sleywill/snapapi-python/issues)
+- [GitHub Issues](https://github.com/Sleywill/snapapi-python/issues)
+- [Changelog](./CHANGELOG.md)
