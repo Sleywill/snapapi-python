@@ -2,6 +2,24 @@
 
 All notable changes to the `snapapi` Python SDK are documented here.
 
+## [3.1.0] — 2026-03-16
+
+### Added
+- `SnapAPI.screenshot_to_file(url, filepath, **kwargs)` -- capture and save to disk in one call.
+- `SnapAPI.pdf_to_file(url, filepath, **kwargs)` -- generate PDF and save to disk in one call.
+- `AsyncSnapAPI.screenshot_to_file()` and `AsyncSnapAPI.pdf_to_file()` -- async equivalents.
+- `SnapAPI.get_usage()` / `AsyncSnapAPI.get_usage()` -- primary usage method (maps to `/v1/usage`).
+- `X-Api-Key` header sent alongside `Authorization: Bearer` for maximum server compatibility.
+- Additional unit tests: video, og_image, analyze, screenshot_to_file, pdf_to_file, error class structure, non-retryable error paths.
+- Comprehensive README overhaul with full options table, advanced usage patterns, and batch processing examples.
+
+### Changed
+- `SnapAPI.quota()` now calls `get_usage()` internally (both remain available).
+- HTTP module version bumped to `3.1.0` in User-Agent string.
+
+### Fixed
+- Removed duplicate `block_trackers` and `block_chat_widgets` field definitions in `ScreenshotOptions` dataclass.
+
 ## [3.0.0] — 2026-03-14
 
 ### Breaking Changes
