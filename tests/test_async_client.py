@@ -1,11 +1,13 @@
 """
-Unit tests for SnapAPI Python SDK — async client.
+Unit tests for SnapAPI Python SDK -- async client.
 HTTP calls are fully mocked via respx (httpx interceptor).
 """
 
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 
 import httpx
 import pytest
@@ -23,7 +25,7 @@ BASE = "https://snapapi.pics"
 pytestmark = pytest.mark.asyncio
 
 
-# ── Helpers ──────────────────────────────────────────────────────────────────
+# -- Helpers ------------------------------------------------------------------
 
 def json_response(data: dict, status: int = 200) -> httpx.Response:
     return httpx.Response(status, json=data)
@@ -33,7 +35,7 @@ def binary_response(data: bytes = b"\x89PNG\r\n") -> httpx.Response:
     return httpx.Response(200, content=data, headers={"Content-Type": "image/png"})
 
 
-# ── Constructor ───────────────────────────────────────────────────────────────
+# -- Constructor ---------------------------------------------------------------
 
 class TestAsyncConstructor:
     def test_raises_without_api_key(self):
@@ -45,7 +47,7 @@ class TestAsyncConstructor:
             assert snap is not None
 
 
-# ── screenshot() ─────────────────────────────────────────────────────────────
+# -- screenshot() --------------------------------------------------------------
 
 class TestAsyncScreenshot:
     async def test_raises_without_input(self):
@@ -62,15 +64,34 @@ class TestAsyncScreenshot:
         assert isinstance(result, bytes)
 
     @respx.mock
-    async def test_sends_authorization_header(self):
+    async def test_sends_both_auth_headers(self):
         route = respx.post(f"{BASE}/v1/screenshot").mock(return_value=binary_response())
         async with AsyncSnapAPI(api_key="sk_async_key", max_retries=0) as snap:
             await snap.screenshot(url="https://example.com")
         request = route.calls.last.request
         assert request.headers["Authorization"] == "Bearer sk_async_key"
+        assert request.headers["X-Api-Key"] == "sk_async_key"
 
 
-# ── scrape() ─────────────────────────────────────────────────────────────────
+# -- screenshot_to_file() -----------------------------------------------------
+
+class TestAsyncScreenshotToFile:
+    @respx.mock
+    async def test_saves_to_file(self):
+        respx.post(f"{BASE}/v1/screenshot").mock(return_value=binary_response(b"\x89PNG_ASYNC"))
+        async with AsyncSnapAPI(api_key="sk_test", max_retries=0) as snap:
+            with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
+                filepath = f.name
+            try:
+                result = await snap.screenshot_to_file("https://example.com", filepath)
+                assert result == b"\x89PNG_ASYNC"
+                with open(filepath, "rb") as f:
+                    assert f.read() == b"\x89PNG_ASYNC"
+            finally:
+                os.unlink(filepath)
+
+
+# -- scrape() ------------------------------------------------------------------
 
 class TestAsyncScrape:
     @respx.mock
@@ -85,7 +106,7 @@ class TestAsyncScrape:
         assert result.results[0].data == "async content"
 
 
-# ── extract() ────────────────────────────────────────────────────────────────
+# -- extract() -----------------------------------------------------------------
 
 class TestAsyncExtract:
     @respx.mock
@@ -104,19 +125,76 @@ class TestAsyncExtract:
         assert result.content == "Plain text content"
 
 
-# ── quota() ──────────────────────────────────────────────────────────────────
+# -- video() -------------------------------------------------------------------
 
-class TestAsyncQuota:
+class TestAsyncVideo:
+    @respx.mock
+    async def test_returns_bytes(self):
+        respx.post(f"{BASE}/v1/video").mock(
+            return_value=httpx.Response(200, content=b"\x00\x00VIDEO")
+        )
+        async with AsyncSnapAPI(api_key="sk_test", max_retries=0) as snap:
+            result = await snap.video(url="https://example.com", duration=3)
+        assert isinstance(result, bytes)
+
+
+# -- og_image() ----------------------------------------------------------------
+
+class TestAsyncOgImage:
+    @respx.mock
+    async def test_returns_bytes(self):
+        respx.post(f"{BASE}/v1/screenshot").mock(return_value=binary_response())
+        async with AsyncSnapAPI(api_key="sk_test", max_retries=0) as snap:
+            result = await snap.og_image(url="https://example.com")
+        assert isinstance(result, bytes)
+
+
+# -- analyze() -----------------------------------------------------------------
+
+class TestAsyncAnalyze:
+    @respx.mock
+    async def test_returns_analyze_result(self):
+        payload = {
+            "success": True,
+            "result": "Summary here.",
+            "url": "https://example.com",
+            "model": "gpt-4o",
+            "provider": "openai",
+            "took": 2000,
+        }
+        respx.post(f"{BASE}/v1/analyze").mock(return_value=json_response(payload))
+        async with AsyncSnapAPI(api_key="sk_test", max_retries=0) as snap:
+            result = await snap.analyze(
+                url="https://example.com",
+                prompt="Summarize.",
+                provider="openai",
+                api_key="sk-test",
+            )
+        assert result.success is True
+        assert result.result == "Summary here."
+
+
+# -- get_usage() / quota() ----------------------------------------------------
+
+class TestAsyncGetUsage:
     @respx.mock
     async def test_returns_usage_result(self):
         payload = {"used": 10, "limit": 500, "remaining": 490, "resetAt": "2026-04-01T00:00:00Z"}
-        respx.get(f"{BASE}/v1/quota").mock(return_value=json_response(payload))
+        respx.get(f"{BASE}/v1/usage").mock(return_value=json_response(payload))
         async with AsyncSnapAPI(api_key="sk_test", max_retries=0) as snap:
-            usage = await snap.quota()
+            usage = await snap.get_usage()
         assert usage.used == 10
 
+    @respx.mock
+    async def test_quota_is_alias(self):
+        payload = {"used": 3, "limit": 100, "remaining": 97, "resetAt": ""}
+        respx.get(f"{BASE}/v1/usage").mock(return_value=json_response(payload))
+        async with AsyncSnapAPI(api_key="sk_test", max_retries=0) as snap:
+            usage = await snap.quota()
+        assert usage.used == 3
 
-# ── Error handling ────────────────────────────────────────────────────────────
+
+# -- Error handling ------------------------------------------------------------
 
 class TestAsyncErrorHandling:
     @respx.mock
@@ -143,7 +221,7 @@ class TestAsyncErrorHandling:
         assert exc_info.value.retry_after == 10.0
 
 
-# ── Retry logic ───────────────────────────────────────────────────────────────
+# -- Retry logic ---------------------------------------------------------------
 
 class TestAsyncRetryLogic:
     @respx.mock
@@ -163,3 +241,19 @@ class TestAsyncRetryLogic:
             result = await snap.ping()
         assert result["status"] == "ok"
         assert call_count == 3
+
+    @respx.mock
+    async def test_does_not_retry_on_401(self):
+        call_count = 0
+
+        def handler(request):
+            nonlocal call_count
+            call_count += 1
+            return json_response({"message": "Unauthorized"}, status=401)
+
+        respx.get(f"{BASE}/v1/ping").mock(side_effect=handler)
+
+        async with AsyncSnapAPI(api_key="sk_test", max_retries=3, retry_delay=0.0) as snap:
+            with pytest.raises(AuthenticationError):
+                await snap.ping()
+        assert call_count == 1

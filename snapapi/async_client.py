@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 try:
@@ -106,7 +107,7 @@ class AsyncSnapAPI:
         self.retry_delay = retry_delay
         self._client: Optional[httpx.AsyncClient] = None
 
-    # ── Context manager ─────────────────────────────────────────────────────
+    # -- Context manager ---------------------------------------------------------
 
     async def __aenter__(self) -> "AsyncSnapAPI":
         self._client = httpx.AsyncClient(
@@ -132,7 +133,7 @@ class AsyncSnapAPI:
             )
         return self._client
 
-    # ── Screenshot ──────────────────────────────────────────────────────────
+    # -- Screenshot --------------------------------------------------------------
 
     async def screenshot(
         self,
@@ -238,7 +239,35 @@ class AsyncSnapAPI:
             return json.loads(raw)
         return raw
 
-    # ── PDF ─────────────────────────────────────────────────────────────────
+    async def screenshot_to_file(
+        self,
+        url: str,
+        filepath: str,
+        **kwargs: Any,
+    ) -> bytes:
+        """Capture a screenshot and save it to a file asynchronously.
+
+        Args:
+            url: The URL to capture.
+            filepath: Destination file path.
+            **kwargs: Additional screenshot options.
+
+        Returns:
+            The raw bytes that were written to disk.
+        """
+        kwargs.pop("storage", None)
+        kwargs.pop("webhook_url", None)
+        kwargs.pop("job_id", None)
+
+        result = await self.screenshot(url=url, **kwargs)
+        if not isinstance(result, bytes):
+            raise TypeError(
+                "screenshot_to_file: expected binary response but got dict."
+            )
+        Path(filepath).write_bytes(result)
+        return result
+
+    # -- PDF ---------------------------------------------------------------------
 
     async def pdf(
         self,
@@ -285,7 +314,27 @@ class AsyncSnapAPI:
 
         return await self._request("POST", "/v1/screenshot", payload)
 
-    # ── Scrape ──────────────────────────────────────────────────────────────
+    async def pdf_to_file(
+        self,
+        url: str,
+        filepath: str,
+        **kwargs: Any,
+    ) -> bytes:
+        """Generate a PDF and save it to a file asynchronously.
+
+        Args:
+            url: The URL to convert.
+            filepath: Destination file path.
+            **kwargs: Additional PDF options.
+
+        Returns:
+            The raw PDF bytes that were written to disk.
+        """
+        result = await self.pdf(url=url, **kwargs)
+        Path(filepath).write_bytes(result)
+        return result
+
+    # -- Scrape ------------------------------------------------------------------
 
     async def scrape(
         self,
@@ -315,7 +364,7 @@ class AsyncSnapAPI:
         raw = await self._request("POST", "/v1/scrape", opts.to_dict())
         return ScrapeResult.from_dict(json.loads(raw))
 
-    # ── Extract ─────────────────────────────────────────────────────────────
+    # -- Extract -----------------------------------------------------------------
 
     async def extract(
         self,
@@ -351,7 +400,7 @@ class AsyncSnapAPI:
         raw = await self._request("POST", "/v1/extract", opts.to_dict())
         return ExtractResult.from_dict(json.loads(raw))
 
-    # ── Video ───────────────────────────────────────────────────────────────
+    # -- Video -------------------------------------------------------------------
 
     async def video(
         self,
@@ -400,7 +449,7 @@ class AsyncSnapAPI:
         )
         return await self._request("POST", "/v1/video", opts.to_dict())
 
-    # ── OG Image ────────────────────────────────────────────────────────────
+    # -- OG Image ----------------------------------------------------------------
 
     async def og_image(
         self,
@@ -416,7 +465,7 @@ class AsyncSnapAPI:
             {"url": url, "format": format, "width": width, "height": height},
         )
 
-    # ── Analyze ─────────────────────────────────────────────────────────────
+    # -- Analyze -----------------------------------------------------------------
 
     async def analyze(
         self,
@@ -453,19 +502,23 @@ class AsyncSnapAPI:
         raw = await self._request("POST", "/v1/analyze", opts.to_dict())
         return AnalyzeResult.from_dict(json.loads(raw))
 
-    # ── Quota ───────────────────────────────────────────────────────────────
+    # -- Usage / Quota -----------------------------------------------------------
+
+    async def get_usage(self) -> UsageResult:
+        """Get your API usage asynchronously."""
+        raw = await self._request("GET", "/v1/usage")
+        return UsageResult.from_dict(json.loads(raw))
 
     async def quota(self) -> UsageResult:
-        """Get your API usage asynchronously."""
-        raw = await self._request("GET", "/v1/quota")
-        return UsageResult.from_dict(json.loads(raw))
+        """Alias for :meth:`get_usage`."""
+        return await self.get_usage()
 
     async def ping(self) -> Dict[str, Any]:
         """Check API availability asynchronously."""
         raw = await self._request("GET", "/v1/ping")
         return json.loads(raw)  # type: ignore[no-any-return]
 
-    # ── Storage ─────────────────────────────────────────────────────────────
+    # -- Storage -----------------------------------------------------------------
 
     async def storage_list_files(self, limit: int = 50, offset: int = 0) -> StorageListResult:
         """List stored files asynchronously."""
@@ -497,7 +550,7 @@ class AsyncSnapAPI:
         raw = await self._request("POST", "/v1/storage/s3/test", {})
         return S3TestResult.from_dict(json.loads(raw))
 
-    # ── Scheduled ───────────────────────────────────────────────────────────
+    # -- Scheduled ---------------------------------------------------------------
 
     async def scheduled_create(self, options: CreateScheduledOptions) -> ScheduledScreenshot:
         """Create a scheduled job asynchronously."""
@@ -516,7 +569,7 @@ class AsyncSnapAPI:
         raw = await self._request("DELETE", f"/v1/scheduled/{job_id}")
         return DeleteResult.from_dict(json.loads(raw))
 
-    # ── Webhooks ────────────────────────────────────────────────────────────
+    # -- Webhooks ----------------------------------------------------------------
 
     async def webhooks_create(self, options: CreateWebhookOptions) -> Webhook:
         """Register a webhook asynchronously."""
@@ -535,7 +588,7 @@ class AsyncSnapAPI:
         raw = await self._request("DELETE", f"/v1/webhooks/{webhook_id}")
         return DeleteResult.from_dict(json.loads(raw))
 
-    # ── API Keys ─────────────────────────────────────────────────────────────
+    # -- API Keys ----------------------------------------------------------------
 
     async def keys_list(self) -> List[ApiKey]:
         """List API keys asynchronously."""
@@ -554,7 +607,7 @@ class AsyncSnapAPI:
         raw = await self._request("DELETE", f"/v1/keys/{key_id}")
         return DeleteResult.from_dict(json.loads(raw))
 
-    # ── Internal HTTP ────────────────────────────────────────────────────────
+    # -- Internal HTTP -----------------------------------------------------------
 
     async def _request(
         self,

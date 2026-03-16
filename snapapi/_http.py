@@ -1,5 +1,5 @@
 """
-Internal HTTP helpers — retry logic, error parsing, shared constants.
+Internal HTTP helpers -- retry logic, error parsing, shared constants.
 
 This module is an internal implementation detail and is not part of the
 public API. It may change without notice.
@@ -21,7 +21,7 @@ from .exceptions import (
     ValidationError,
 )
 
-SDK_VERSION = "3.0.0"
+SDK_VERSION = "3.1.0"
 DEFAULT_BASE_URL = "https://snapapi.pics"
 DEFAULT_TIMEOUT = 60.0  # seconds
 DEFAULT_MAX_RETRIES = 3
@@ -32,6 +32,7 @@ MAX_RETRY_DELAY = 30.0  # seconds
 def build_headers(api_key: str) -> Dict[str, str]:
     """Build the standard HTTP headers for every request."""
     return {
+        "X-Api-Key": api_key,
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
         "User-Agent": f"snapapi-python/{SDK_VERSION}",
@@ -46,7 +47,7 @@ def parse_error_response(status_code: int, body: bytes, headers: Dict[str, Any])
         data = {}
 
     message: str = data.get("message", f"HTTP {status_code}")
-    code: str = data.get("error", "UNKNOWN_ERROR")
+    code: Any = data.get("error", "UNKNOWN_ERROR")
     if isinstance(code, dict):
         # Nested error format
         message = code.get("message", message)
@@ -88,6 +89,6 @@ def should_retry(error: SnapAPIError) -> bool:
 
 
 def compute_backoff(attempt: int, base_delay: float) -> float:
-    """Exponential backoff with jitter, capped at MAX_RETRY_DELAY."""
+    """Exponential backoff, capped at MAX_RETRY_DELAY."""
     delay = base_delay * (2 ** (attempt - 1))
     return min(delay, MAX_RETRY_DELAY)

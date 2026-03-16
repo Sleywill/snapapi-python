@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import time
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 try:
@@ -111,7 +112,7 @@ class SnapAPI:
             headers=build_headers(self.api_key),
         )
 
-    # ── Context manager ─────────────────────────────────────────────────────
+    # -- Context manager ---------------------------------------------------------
 
     def __enter__(self) -> "SnapAPI":
         return self
@@ -123,7 +124,7 @@ class SnapAPI:
         """Close the underlying HTTP connection pool."""
         self._client.close()
 
-    # ── Screenshot ──────────────────────────────────────────────────────────
+    # -- Screenshot --------------------------------------------------------------
 
     def screenshot(
         self,
@@ -177,20 +178,20 @@ class SnapAPI:
             url: Page URL to capture. Required unless ``html`` or ``markdown`` is set.
             html: Raw HTML string to render.
             markdown: Markdown string to render.
-            format: Output format — ``'png'``, ``'jpeg'``, ``'webp'``, ``'avif'``,
+            format: Output format -- ``'png'``, ``'jpeg'``, ``'webp'``, ``'avif'``,
                 or ``'pdf'``.
-            quality: Image quality 1–100 (JPEG / WebP only).
+            quality: Image quality 1-100 (JPEG / WebP only).
             device: Named device viewport preset (overrides width / height).
             width: Viewport width in pixels (default: 1280).
             height: Viewport height in pixels (default: 800).
-            device_scale_factor: Device pixel ratio 1–3 (default: 1.0).
+            device_scale_factor: Device pixel ratio 1-3 (default: 1.0).
             is_mobile: Emulate a mobile device.
             has_touch: Enable touch events.
             full_page: Capture the full scrollable page.
             full_page_scroll_delay: Delay between scroll steps (ms).
             full_page_max_height: Maximum height for full-page capture (px).
-            selector: CSS selector — capture only that element.
-            delay: Extra delay before capture in ms (0–30 000).
+            selector: CSS selector -- capture only that element.
+            delay: Extra delay before capture in ms (0-30 000).
             timeout: Navigation timeout in ms.
             wait_until: Navigation event to wait for.
             wait_for_selector: Wait for this CSS selector to appear.
@@ -286,7 +287,48 @@ class SnapAPI:
             return json.loads(raw)
         return raw
 
-    # ── PDF ─────────────────────────────────────────────────────────────────
+    def screenshot_to_file(
+        self,
+        url: str,
+        filepath: str,
+        **kwargs: Any,
+    ) -> bytes:
+        """Capture a screenshot and save it directly to a file.
+
+        This is a convenience wrapper around :meth:`screenshot` that handles
+        file I/O for you.
+
+        Args:
+            url: The URL to capture.
+            filepath: Destination file path (e.g. ``'./output/shot.png'``).
+            **kwargs: Additional screenshot options (format, full_page, etc.).
+
+        Returns:
+            The raw bytes that were written to disk.
+
+        Example::
+
+            snap.screenshot_to_file("https://example.com", "./shot.png")
+            snap.screenshot_to_file(
+                "https://example.com", "./full.webp",
+                format="webp", full_page=True,
+            )
+        """
+        # Remove storage/webhook options that would change the return type
+        kwargs.pop("storage", None)
+        kwargs.pop("webhook_url", None)
+        kwargs.pop("job_id", None)
+
+        result = self.screenshot(url=url, **kwargs)
+        if not isinstance(result, bytes):
+            raise TypeError(
+                "screenshot_to_file: expected binary response but got dict. "
+                "Do not use storage or webhook_url options."
+            )
+        Path(filepath).write_bytes(result)
+        return result
+
+    # -- PDF ---------------------------------------------------------------------
 
     def pdf(
         self,
@@ -313,7 +355,7 @@ class SnapAPI:
             header_template: HTML template for the page header.
             footer_template: HTML template for the page footer.
             display_header_footer: Show header and footer.
-            scale: Content scale factor 0.1–2.
+            scale: Content scale factor 0.1-2.
             delay: Extra delay before rendering (ms).
             wait_for_selector: CSS selector to wait for before rendering.
 
@@ -350,7 +392,31 @@ class SnapAPI:
 
         return self._request("POST", "/v1/screenshot", payload)
 
-    # ── Scrape ──────────────────────────────────────────────────────────────
+    def pdf_to_file(
+        self,
+        url: str,
+        filepath: str,
+        **kwargs: Any,
+    ) -> bytes:
+        """Generate a PDF and save it directly to a file.
+
+        Args:
+            url: The URL to convert.
+            filepath: Destination file path (e.g. ``'./output.pdf'``).
+            **kwargs: Additional PDF options (page_size, landscape, etc.).
+
+        Returns:
+            The raw PDF bytes that were written to disk.
+
+        Example::
+
+            snap.pdf_to_file("https://example.com", "./output.pdf", page_size="letter")
+        """
+        result = self.pdf(url=url, **kwargs)
+        Path(filepath).write_bytes(result)
+        return result
+
+    # -- Scrape ------------------------------------------------------------------
 
     def scrape(
         self,
@@ -367,8 +433,8 @@ class SnapAPI:
 
         Args:
             url: URL to scrape (required).
-            type: Content type — ``'text'``, ``'html'``, or ``'links'``.
-            pages: Number of pages to scrape, 1–10 (default: 1).
+            type: Content type -- ``'text'``, ``'html'``, or ``'links'``.
+            pages: Number of pages to scrape, 1-10 (default: 1).
             wait_ms: Wait time after page load in ms.
             proxy: Proxy URL e.g. ``'http://user:pass@host:port'``.
             premium_proxy: Use SnapAPI rotating proxy.
@@ -397,7 +463,7 @@ class SnapAPI:
         raw = self._request("POST", "/v1/scrape", opts.to_dict())
         return ScrapeResult.from_dict(json.loads(raw))
 
-    # ── Extract ─────────────────────────────────────────────────────────────
+    # -- Extract -----------------------------------------------------------------
 
     def extract(
         self,
@@ -417,7 +483,7 @@ class SnapAPI:
 
         Args:
             url: URL to extract content from (required).
-            type: Extraction type — ``'markdown'``, ``'text'``, ``'html'``,
+            type: Extraction type -- ``'markdown'``, ``'text'``, ``'html'``,
                 ``'article'``, ``'links'``, ``'images'``, ``'metadata'``,
                 or ``'structured'``.
             selector: CSS selector to scope the extraction.
@@ -454,7 +520,7 @@ class SnapAPI:
         raw = self._request("POST", "/v1/extract", opts.to_dict())
         return ExtractResult.from_dict(json.loads(raw))
 
-    # ── Video ───────────────────────────────────────────────────────────────
+    # -- Video -------------------------------------------------------------------
 
     def video(
         self,
@@ -481,16 +547,16 @@ class SnapAPI:
 
         Args:
             url: URL to record (required).
-            format: Output format — ``'mp4'``, ``'webm'``, or ``'gif'``.
-            width: Viewport width 320–1920 (default: 1280).
-            height: Viewport height 240–1080 (default: 720).
-            duration: Recording duration in seconds 1–30 (default: 5).
-            fps: Frames per second 10–30 (default: 25).
+            format: Output format -- ``'mp4'``, ``'webm'``, or ``'gif'``.
+            width: Viewport width 320-1920 (default: 1280).
+            height: Viewport height 240-1080 (default: 720).
+            duration: Recording duration in seconds 1-30 (default: 5).
+            fps: Frames per second 10-30 (default: 25).
             scrolling: Enable automatic scroll animation.
-            scroll_speed: Scroll speed in px/s, 50–500.
-            scroll_delay: Delay before scroll starts in ms, 0–5000.
-            scroll_duration: Duration of each scroll step in ms, 100–5000.
-            scroll_by: Pixels to scroll per step, 100–2000.
+            scroll_speed: Scroll speed in px/s, 50-500.
+            scroll_delay: Delay before scroll starts in ms, 0-5000.
+            scroll_duration: Duration of each scroll step in ms, 100-5000.
+            scroll_by: Pixels to scroll per step, 100-2000.
             scroll_easing: Easing function for scroll.
             scroll_back: Scroll back to top after reaching the bottom.
             scroll_complete: Stop when scroll reaches the bottom.
@@ -530,7 +596,7 @@ class SnapAPI:
         )
         return self._request("POST", "/v1/video", opts.to_dict())
 
-    # ── OG Image ────────────────────────────────────────────────────────────
+    # -- OG Image ----------------------------------------------------------------
 
     def og_image(
         self,
@@ -562,7 +628,7 @@ class SnapAPI:
             {"url": url, "format": format, "width": width, "height": height},
         )
 
-    # ── Analyze ─────────────────────────────────────────────────────────────
+    # -- Analyze -----------------------------------------------------------------
 
     def analyze(
         self,
@@ -580,12 +646,12 @@ class SnapAPI:
         block_cookie_banners: bool = False,
         wait_for: Optional[str] = None,
     ) -> AnalyzeResult:
-        """Analyze a web page with an LLM (BYOK — bring your own key).
+        """Analyze a web page with an LLM (BYOK -- bring your own key).
 
         Args:
             url: URL to analyze (required).
             prompt: Analysis prompt (required).
-            provider: LLM provider — ``'openai'`` or ``'anthropic'``.
+            provider: LLM provider -- ``'openai'`` or ``'anthropic'``.
             api_key: Your LLM provider API key.
             model: Override the default model.
             json_schema: JSON schema for structured output.
@@ -628,9 +694,9 @@ class SnapAPI:
         raw = self._request("POST", "/v1/analyze", opts.to_dict())
         return AnalyzeResult.from_dict(json.loads(raw))
 
-    # ── Quota ───────────────────────────────────────────────────────────────
+    # -- Usage / Quota -----------------------------------------------------------
 
-    def quota(self) -> UsageResult:
+    def get_usage(self) -> UsageResult:
         """Get your API usage for the current billing period.
 
         Returns:
@@ -639,21 +705,22 @@ class SnapAPI:
 
         Example::
 
-            usage = snap.quota()
+            usage = snap.get_usage()
             print(f"{usage.used} / {usage.limit} calls used")
         """
-        raw = self._request("GET", "/v1/quota")
+        raw = self._request("GET", "/v1/usage")
         return UsageResult.from_dict(json.loads(raw))
 
-    def get_usage(self) -> UsageResult:
-        """Alias for :meth:`quota` — kept for backwards compatibility.
+    def quota(self) -> UsageResult:
+        """Alias for :meth:`get_usage`.
 
-        .. deprecated::
-            Use :meth:`quota` instead.
+        Example::
+
+            usage = snap.quota()
         """
-        return self.quota()
+        return self.get_usage()
 
-    # ── Ping ────────────────────────────────────────────────────────────────
+    # -- Ping --------------------------------------------------------------------
 
     def ping(self) -> Dict[str, Any]:
         """Check API availability.
@@ -664,7 +731,7 @@ class SnapAPI:
         raw = self._request("GET", "/v1/ping")
         return json.loads(raw)  # type: ignore[no-any-return]
 
-    # ── Storage ─────────────────────────────────────────────────────────────
+    # -- Storage -----------------------------------------------------------------
 
     def storage_list_files(self, limit: int = 50, offset: int = 0) -> StorageListResult:
         """List files stored in SnapAPI cloud.
@@ -734,7 +801,7 @@ class SnapAPI:
         raw = self._request("POST", "/v1/storage/s3/test", {})
         return S3TestResult.from_dict(json.loads(raw))
 
-    # ── Scheduled ───────────────────────────────────────────────────────────
+    # -- Scheduled ---------------------------------------------------------------
 
     def scheduled_create(self, options: CreateScheduledOptions) -> ScheduledScreenshot:
         """Create a new scheduled screenshot job.
@@ -771,7 +838,7 @@ class SnapAPI:
         raw = self._request("DELETE", f"/v1/scheduled/{job_id}")
         return DeleteResult.from_dict(json.loads(raw))
 
-    # ── Webhooks ────────────────────────────────────────────────────────────
+    # -- Webhooks ----------------------------------------------------------------
 
     def webhooks_create(self, options: CreateWebhookOptions) -> Webhook:
         """Register a new webhook endpoint.
@@ -808,7 +875,7 @@ class SnapAPI:
         raw = self._request("DELETE", f"/v1/webhooks/{webhook_id}")
         return DeleteResult.from_dict(json.loads(raw))
 
-    # ── API Keys ─────────────────────────────────────────────────────────────
+    # -- API Keys ----------------------------------------------------------------
 
     def keys_list(self) -> List[ApiKey]:
         """List all API keys. Key values are masked.
@@ -845,7 +912,7 @@ class SnapAPI:
         raw = self._request("DELETE", f"/v1/keys/{key_id}")
         return DeleteResult.from_dict(json.loads(raw))
 
-    # ── Internal HTTP ────────────────────────────────────────────────────────
+    # -- Internal HTTP -----------------------------------------------------------
 
     def _request(
         self,
@@ -895,9 +962,7 @@ class SnapAPI:
                     dict(resp.headers),
                 )
                 if attempt < self.max_retries and should_retry(parsed):
-                    if isinstance(parsed, type) and hasattr(parsed, "retry_after"):
-                        wait = min(parsed.retry_after, 30.0)  # type: ignore[attr-defined]
-                    elif hasattr(parsed, "retry_after"):
+                    if hasattr(parsed, "retry_after"):
                         wait = min(parsed.retry_after, 30.0)  # type: ignore[attr-defined]
                     else:
                         wait = compute_backoff(attempt + 1, self.retry_delay)

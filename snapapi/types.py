@@ -249,8 +249,6 @@ class ScreenshotOptions:
     job_id: Optional[str] = None              # poll async result
     premium_proxy: Optional[bool] = None      # SnapAPI rotating proxy
     # v3 additions
-    block_trackers: bool = False
-    block_chat_widgets: bool = False
     page_size: Optional[str] = None
     landscape: Optional[bool] = None
     margins: Optional[Dict[str, str]] = None

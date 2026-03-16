@@ -1,11 +1,13 @@
 """
-Unit tests for SnapAPI Python SDK — sync client.
+Unit tests for SnapAPI Python SDK -- sync client.
 HTTP calls are fully mocked via respx (httpx interceptor).
 """
 
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 
 import httpx
 import pytest
@@ -18,12 +20,14 @@ from snapapi import (
     SnapAPI,
     SnapAPIError,
     ValidationError,
+    TimeoutError as SnapTimeoutError,
+    NetworkError,
 )
 
 BASE = "https://snapapi.pics"
 
 
-# ── Helpers ──────────────────────────────────────────────────────────────────
+# -- Helpers ------------------------------------------------------------------
 
 def make_client(**kwargs) -> SnapAPI:
     return SnapAPI(api_key="sk_test_1234", max_retries=0, **kwargs)
@@ -37,7 +41,7 @@ def binary_response(data: bytes = b"\x89PNG\r\n") -> httpx.Response:
     return httpx.Response(200, content=data, headers={"Content-Type": "image/png"})
 
 
-# ── Constructor ───────────────────────────────────────────────────────────────
+# -- Constructor ---------------------------------------------------------------
 
 class TestConstructor:
     def test_raises_without_api_key(self):
@@ -58,7 +62,7 @@ class TestConstructor:
             assert snap is not None
 
 
-# ── screenshot() ─────────────────────────────────────────────────────────────
+# -- screenshot() --------------------------------------------------------------
 
 class TestScreenshot:
     def test_raises_without_input(self):
@@ -84,15 +88,68 @@ class TestScreenshot:
         assert result["id"] == "f1"
 
     @respx.mock
-    def test_sends_authorization_header(self):
+    def test_sends_both_auth_headers(self):
         route = respx.post(f"{BASE}/v1/screenshot").mock(return_value=binary_response())
         snap = make_client()
         snap.screenshot(url="https://example.com")
         request = route.calls.last.request
         assert request.headers["Authorization"] == "Bearer sk_test_1234"
+        assert request.headers["X-Api-Key"] == "sk_test_1234"
+
+    @respx.mock
+    def test_accepts_html_input(self):
+        respx.post(f"{BASE}/v1/screenshot").mock(return_value=binary_response())
+        snap = make_client()
+        result = snap.screenshot(html="<h1>Hello</h1>")
+        assert isinstance(result, bytes)
+
+    @respx.mock
+    def test_accepts_markdown_input(self):
+        respx.post(f"{BASE}/v1/screenshot").mock(return_value=binary_response())
+        snap = make_client()
+        result = snap.screenshot(markdown="# Hello")
+        assert isinstance(result, bytes)
 
 
-# ── pdf() ─────────────────────────────────────────────────────────────────────
+# -- screenshot_to_file() -----------------------------------------------------
+
+class TestScreenshotToFile:
+    @respx.mock
+    def test_saves_to_file_and_returns_bytes(self):
+        respx.post(f"{BASE}/v1/screenshot").mock(return_value=binary_response(b"\x89PNG_TEST"))
+        snap = make_client()
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
+            filepath = f.name
+        try:
+            result = snap.screenshot_to_file("https://example.com", filepath)
+            assert isinstance(result, bytes)
+            assert result == b"\x89PNG_TEST"
+            with open(filepath, "rb") as f:
+                assert f.read() == b"\x89PNG_TEST"
+        finally:
+            os.unlink(filepath)
+
+    @respx.mock
+    def test_passes_additional_options(self):
+        route = respx.post(f"{BASE}/v1/screenshot").mock(return_value=binary_response())
+        snap = make_client()
+        with tempfile.NamedTemporaryFile(suffix=".webp", delete=False) as f:
+            filepath = f.name
+        try:
+            snap.screenshot_to_file(
+                "https://example.com", filepath,
+                format="webp", full_page=True, dark_mode=True,
+            )
+            request = route.calls.last.request
+            body = json.loads(request.content)
+            assert body["format"] == "webp"
+            assert body["fullPage"] is True
+            assert body["darkMode"] is True
+        finally:
+            os.unlink(filepath)
+
+
+# -- pdf() ---------------------------------------------------------------------
 
 class TestPdf:
     def test_raises_without_input(self):
@@ -110,8 +167,37 @@ class TestPdf:
         assert isinstance(result, bytes)
         assert result.startswith(b"%PDF")
 
+    @respx.mock
+    def test_accepts_html(self):
+        respx.post(f"{BASE}/v1/screenshot").mock(
+            return_value=httpx.Response(200, content=b"%PDF-1.4")
+        )
+        snap = make_client()
+        result = snap.pdf(html="<h1>Invoice</h1>")
+        assert isinstance(result, bytes)
 
-# ── scrape() ─────────────────────────────────────────────────────────────────
+
+# -- pdf_to_file() ------------------------------------------------------------
+
+class TestPdfToFile:
+    @respx.mock
+    def test_saves_to_file(self):
+        respx.post(f"{BASE}/v1/screenshot").mock(
+            return_value=httpx.Response(200, content=b"%PDF-1.4-TEST")
+        )
+        snap = make_client()
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
+            filepath = f.name
+        try:
+            result = snap.pdf_to_file("https://example.com", filepath)
+            assert result == b"%PDF-1.4-TEST"
+            with open(filepath, "rb") as f:
+                assert f.read() == b"%PDF-1.4-TEST"
+        finally:
+            os.unlink(filepath)
+
+
+# -- scrape() ------------------------------------------------------------------
 
 class TestScrape:
     @respx.mock
@@ -127,7 +213,7 @@ class TestScrape:
         assert result.results[0].data == "Hello world"
 
 
-# ── extract() ────────────────────────────────────────────────────────────────
+# -- extract() -----------------------------------------------------------------
 
 class TestExtract:
     @respx.mock
@@ -147,20 +233,20 @@ class TestExtract:
         assert result.type == "markdown"
 
 
-# ── quota() ──────────────────────────────────────────────────────────────────
+# -- video() -------------------------------------------------------------------
 
-class TestQuota:
+class TestVideo:
     @respx.mock
-    def test_returns_usage_result(self):
-        payload = {"used": 42, "limit": 1000, "remaining": 958, "resetAt": "2026-04-01T00:00:00Z"}
-        respx.get(f"{BASE}/v1/quota").mock(return_value=json_response(payload))
+    def test_returns_bytes(self):
+        respx.post(f"{BASE}/v1/video").mock(
+            return_value=httpx.Response(200, content=b"\x00\x00VIDEO", headers={"Content-Type": "video/mp4"})
+        )
         snap = make_client()
-        usage = snap.quota()
-        assert usage.used == 42
-        assert usage.remaining == 958
+        result = snap.video(url="https://example.com", duration=3)
+        assert isinstance(result, bytes)
 
 
-# ── og_image() ───────────────────────────────────────────────────────────────
+# -- og_image() ----------------------------------------------------------------
 
 class TestOgImage:
     @respx.mock
@@ -171,13 +257,81 @@ class TestOgImage:
         assert isinstance(result, bytes)
 
 
-# ── Error handling ────────────────────────────────────────────────────────────
+# -- analyze() -----------------------------------------------------------------
+
+class TestAnalyze:
+    @respx.mock
+    def test_returns_analyze_result(self):
+        payload = {
+            "success": True,
+            "result": "This page is about testing.",
+            "url": "https://example.com",
+            "model": "gpt-4o",
+            "provider": "openai",
+            "took": 3500,
+        }
+        respx.post(f"{BASE}/v1/analyze").mock(return_value=json_response(payload))
+        snap = make_client()
+        result = snap.analyze(
+            url="https://example.com",
+            prompt="Summarize this page.",
+            provider="openai",
+            api_key="sk-test",
+        )
+        assert result.success is True
+        assert result.result == "This page is about testing."
+
+
+# -- get_usage() / quota() ----------------------------------------------------
+
+class TestGetUsage:
+    @respx.mock
+    def test_returns_usage_result(self):
+        payload = {"used": 42, "limit": 1000, "remaining": 958, "resetAt": "2026-04-01T00:00:00Z"}
+        respx.get(f"{BASE}/v1/usage").mock(return_value=json_response(payload))
+        snap = make_client()
+        usage = snap.get_usage()
+        assert usage.used == 42
+        assert usage.remaining == 958
+
+    @respx.mock
+    def test_quota_is_alias_for_get_usage(self):
+        payload = {"used": 5, "limit": 500, "remaining": 495, "resetAt": ""}
+        respx.get(f"{BASE}/v1/usage").mock(return_value=json_response(payload))
+        snap = make_client()
+        usage = snap.quota()
+        assert usage.used == 5
+
+
+# -- ping() -------------------------------------------------------------------
+
+class TestPing:
+    @respx.mock
+    def test_returns_status_ok(self):
+        respx.get(f"{BASE}/v1/ping").mock(
+            return_value=json_response({"status": "ok", "timestamp": 1000000})
+        )
+        snap = make_client()
+        result = snap.ping()
+        assert result["status"] == "ok"
+
+
+# -- Error handling ------------------------------------------------------------
 
 class TestErrorHandling:
     @respx.mock
     def test_raises_authentication_error_on_401(self):
         respx.get(f"{BASE}/v1/ping").mock(
             return_value=json_response({"message": "Unauthorized", "error": "UNAUTHORIZED"}, status=401)
+        )
+        snap = make_client()
+        with pytest.raises(AuthenticationError):
+            snap.ping()
+
+    @respx.mock
+    def test_raises_authentication_error_on_403(self):
+        respx.get(f"{BASE}/v1/ping").mock(
+            return_value=json_response({"message": "Forbidden"}, status=403)
         )
         snap = make_client()
         with pytest.raises(AuthenticationError):
@@ -236,7 +390,7 @@ class TestErrorHandling:
         assert exc_info.value.status_code == 500
 
 
-# ── Retry logic ───────────────────────────────────────────────────────────────
+# -- Retry logic ---------------------------------------------------------------
 
 class TestRetryLogic:
     @respx.mock
@@ -278,15 +432,75 @@ class TestRetryLogic:
         assert exc_info.value.status_code == 503
         assert call_count == 3  # 1 initial + 2 retries
 
-
-# ── Ping ─────────────────────────────────────────────────────────────────────
-
-class TestPing:
     @respx.mock
-    def test_returns_status_ok(self):
-        respx.get(f"{BASE}/v1/ping").mock(
-            return_value=json_response({"status": "ok", "timestamp": 1000000})
-        )
-        snap = make_client()
-        result = snap.ping()
-        assert result["status"] == "ok"
+    def test_does_not_retry_on_401(self):
+        call_count = 0
+
+        def handler(request):
+            nonlocal call_count
+            call_count += 1
+            return json_response({"message": "Unauthorized"}, status=401)
+
+        respx.get(f"{BASE}/v1/ping").mock(side_effect=handler)
+
+        snap = SnapAPI(api_key="sk_test", max_retries=3, retry_delay=0.0)
+        with pytest.raises(AuthenticationError):
+            snap.ping()
+        assert call_count == 1
+
+    @respx.mock
+    def test_does_not_retry_on_422(self):
+        call_count = 0
+
+        def handler(request):
+            nonlocal call_count
+            call_count += 1
+            return json_response({"message": "Bad input", "error": "VALIDATION_ERROR"}, status=422)
+
+        respx.post(f"{BASE}/v1/screenshot").mock(side_effect=handler)
+
+        snap = SnapAPI(api_key="sk_test", max_retries=3, retry_delay=0.0)
+        with pytest.raises(ValidationError):
+            snap.screenshot(url="bad")
+        assert call_count == 1
+
+
+# -- Error class structure -----------------------------------------------------
+
+class TestErrorClassStructure:
+    def test_snap_api_error_attributes(self):
+        err = SnapAPIError("test", "TEST_CODE", 418)
+        assert err.code == "TEST_CODE"
+        assert err.status_code == 418
+        assert str(err) == "[TEST_CODE] test"
+        assert isinstance(err, Exception)
+
+    def test_rate_limit_error_has_retry_after(self):
+        err = RateLimitError("too fast", retry_after=10.0)
+        assert err.retry_after == 10.0
+        assert err.status_code == 429
+        assert isinstance(err, SnapAPIError)
+
+    def test_authentication_error_inherits(self):
+        err = AuthenticationError("bad key")
+        assert isinstance(err, SnapAPIError)
+        assert err.status_code == 401
+
+    def test_validation_error_has_fields(self):
+        err = ValidationError("bad", fields={"url": "invalid"})
+        assert err.fields["url"] == "invalid"
+        assert err.status_code == 422
+
+    def test_quota_exceeded_error_status(self):
+        err = QuotaExceededError("exceeded")
+        assert err.status_code == 402
+
+    def test_timeout_error_status(self):
+        err = SnapTimeoutError()
+        assert err.status_code == 0
+        assert err.code == "TIMEOUT"
+
+    def test_network_error_status(self):
+        err = NetworkError("connection refused")
+        assert err.status_code == 0
+        assert err.code == "NETWORK_ERROR"
