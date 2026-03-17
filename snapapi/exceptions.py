@@ -8,7 +8,7 @@ SnapAPI-specific errors in a single ``except`` clause.
 
 from __future__ import annotations
 
-from typing import Any, dict
+from typing import Any
 
 
 class SnapAPIError(Exception):

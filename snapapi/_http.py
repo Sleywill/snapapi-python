@@ -8,7 +8,7 @@ public API. It may change without notice.
 from __future__ import annotations
 
 import json
-from typing import Any, dict
+from typing import Any
 
 from .exceptions import (
     AuthenticationError,

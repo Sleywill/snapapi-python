@@ -2,8 +2,10 @@
 Type definitions for SnapAPI Python SDK
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Any, Literal, dict, list
+from typing import Any, Literal
 
 # Device preset type
 DevicePreset = Literal[
@@ -403,7 +405,7 @@ class ScreenshotMetadata:
     links: list[str] | None = None
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "ScreenshotMetadata":
+    def from_dict(cls, data: dict[str, Any]) -> ScreenshotMetadata:
         return cls(
             title=data.get("title"),
             description=data.get("description"),
@@ -433,7 +435,7 @@ class ScreenshotResult:
     thumbnail: str | None = None
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "ScreenshotResult":
+    def from_dict(cls, data: dict[str, Any]) -> ScreenshotResult:
         """Create from API response dictionary."""
         metadata = None
         if data.get("metadata"):
@@ -561,7 +563,7 @@ class VideoResult:
     data: str | None = None
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "VideoResult":
+    def from_dict(cls, data: dict[str, Any]) -> VideoResult:
         """Create from API response dictionary."""
         return cls(
             success=data.get("success", False),
@@ -624,7 +626,7 @@ class BatchResultItem:
     duration: int | None = None
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "BatchResultItem":
+    def from_dict(cls, data: dict[str, Any]) -> BatchResultItem:
         return cls(
             url=data.get("url", ""),
             status=data.get("status", "pending"),
@@ -648,7 +650,7 @@ class BatchResult:
     completed_at: str | None = None
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "BatchResult":
+    def from_dict(cls, data: dict[str, Any]) -> BatchResult:
         """Create from API response dictionary."""
         results = None
         if data.get("results"):
@@ -678,7 +680,7 @@ class DeviceInfo:
     is_mobile: bool
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "DeviceInfo":
+    def from_dict(cls, data: dict[str, Any]) -> DeviceInfo:
         return cls(
             id=data.get("id", ""),
             name=data.get("name", ""),
@@ -697,7 +699,7 @@ class DevicesResult:
     total: int
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "DevicesResult":
+    def from_dict(cls, data: dict[str, Any]) -> DevicesResult:
         devices = {}
         for category, device_list in data.get("devices", {}).items():
             devices[category] = [DeviceInfo.from_dict(d) for d in device_list]
@@ -716,7 +718,7 @@ class CapabilitiesResult:
     capabilities: dict[str, Any]
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "CapabilitiesResult":
+    def from_dict(cls, data: dict[str, Any]) -> CapabilitiesResult:
         return cls(
             success=data.get("success", False),
             version=data.get("version", ""),
@@ -733,7 +735,7 @@ class UsageResult:
     reset_at: str
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "UsageResult":
+    def from_dict(cls, data: dict[str, Any]) -> UsageResult:
         return cls(
             used=data.get("used", 0),
             limit=data.get("limit", 0),
@@ -799,10 +801,10 @@ class ScrapePageResult:
 class ScrapeResult:
     """Result of a multi-page scrape."""
     success: bool
-    results: list["ScrapePageResult"]
+    results: list[ScrapePageResult]
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "ScrapeResult":
+    def from_dict(cls, data: dict[str, Any]) -> ScrapeResult:
         """Create from API response dictionary."""
         results = [
             ScrapePageResult(page=r["page"], url=r["url"], data=r["data"])
@@ -877,7 +879,7 @@ class ExtractResult:
     cached: bool = False
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "ExtractResult":
+    def from_dict(cls, data: dict[str, Any]) -> ExtractResult:
         """Create from API response dictionary."""
         return cls(
             success=data.get("success", False),
@@ -958,7 +960,7 @@ class AnalyzeResult:
     metadata: dict[str, Any] | None = None
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "AnalyzeResult":
+    def from_dict(cls, data: dict[str, Any]) -> AnalyzeResult:
         """Create from API response dictionary."""
         return cls(
             success=data.get("success", False),
@@ -991,7 +993,7 @@ class StorageFile:
     extra: dict[str, Any] | None = None
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "StorageFile":
+    def from_dict(cls, data: dict[str, Any]) -> StorageFile:
         known = {"id", "url", "filename", "size", "format", "createdAt"}
         return cls(
             id=data["id"],
@@ -1013,7 +1015,7 @@ class StorageListResult:
     offset: int | None = None
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "StorageListResult":
+    def from_dict(cls, data: dict[str, Any]) -> StorageListResult:
         files = [StorageFile.from_dict(f) for f in data.get("files", [])]
         return cls(
             files=files,
@@ -1033,7 +1035,7 @@ class StorageUsage:
     limit_formatted: str
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "StorageUsage":
+    def from_dict(cls, data: dict[str, Any]) -> StorageUsage:
         return cls(
             used=data.get("used", 0),
             limit=data.get("limit", 0),
@@ -1071,7 +1073,7 @@ class S3TestResult:
     message: str | None = None
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "S3TestResult":
+    def from_dict(cls, data: dict[str, Any]) -> S3TestResult:
         return cls(success=data.get("success", False), message=data.get("message"))
 
 
@@ -1081,7 +1083,7 @@ class DeleteResult:
     success: bool
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "DeleteResult":
+    def from_dict(cls, data: dict[str, Any]) -> DeleteResult:
         return cls(success=data.get("success", False))
 
 
@@ -1133,7 +1135,7 @@ class ScheduledScreenshot:
     created_at: str | None = None
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "ScheduledScreenshot":
+    def from_dict(cls, data: dict[str, Any]) -> ScheduledScreenshot:
         return cls(
             id=data["id"],
             url=data["url"],
@@ -1176,7 +1178,7 @@ class Webhook:
     created_at: str | None = None
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "Webhook":
+    def from_dict(cls, data: dict[str, Any]) -> Webhook:
         return cls(
             id=data["id"],
             url=data["url"],
@@ -1200,7 +1202,7 @@ class ApiKey:
     last_used: str | None = None
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "ApiKey":
+    def from_dict(cls, data: dict[str, Any]) -> ApiKey:
         return cls(
             id=data["id"],
             name=data["name"],
@@ -1218,5 +1220,5 @@ class CreateApiKeyResult:
     key: str
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "CreateApiKeyResult":
+    def from_dict(cls, data: dict[str, Any]) -> CreateApiKeyResult:
         return cls(id=data["id"], name=data["name"], key=data["key"])

@@ -23,7 +23,7 @@ from __future__ import annotations
 import asyncio
 import json
 from pathlib import Path
-from typing import Any, dict, list
+from typing import Any
 
 try:
     import httpx
