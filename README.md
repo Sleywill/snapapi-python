@@ -2,10 +2,15 @@
 
 Official Python SDK for [SnapAPI](https://snapapi.pics) — the lightning-fast screenshot, scrape, extract, PDF, video, and AI-analyze API.
 
+[![PyPI version](https://img.shields.io/pypi/v/snapapi-client?label=pypi&color=3776ab)](https://pypi.org/project/snapapi-client/)
+[![CI](https://github.com/Sleywill/snapapi-python/actions/workflows/ci.yml/badge.svg)](https://github.com/Sleywill/snapapi-python/actions)
+[![Python 3.8+](https://img.shields.io/badge/Python-3.8%2B-blue.svg)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+
 ## Installation
 
 ```bash
-pip install snapapi
+pip install snapapi-client
 ```
 
 ## Quick Start
