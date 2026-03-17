@@ -16,13 +16,12 @@ import respx
 from snapapi import (
     AsyncSnapAPI,
     AuthenticationError,
+    NetworkError,
     RateLimitError,
     SnapAPIError,
 )
 
 BASE = "https://api.snapapi.pics"
-
-pytestmark = pytest.mark.asyncio
 
 
 # -- Helpers ------------------------------------------------------------------
@@ -38,7 +37,7 @@ def binary_response(data: bytes = b"\x89PNG\r\n") -> httpx.Response:
 # -- Constructor ---------------------------------------------------------------
 
 class TestAsyncConstructor:
-    def test_raises_without_api_key(self):
+    def test_raises_without_api_key(self):  # noqa: not async, no asyncio mark needed
         with pytest.raises(ValueError):
             AsyncSnapAPI(api_key="")
 
@@ -257,3 +256,301 @@ class TestAsyncRetryLogic:
             with pytest.raises(AuthenticationError):
                 await snap.ping()
         assert call_count == 1
+
+
+# -- screenshot_to_storage() ---------------------------------------------------
+
+class TestAsyncScreenshotToStorage:
+    @respx.mock
+    async def test_returns_dict_with_url(self):
+        respx.post(f"{BASE}/v1/screenshot").mock(
+            return_value=json_response({"id": "f1", "url": "https://cdn.example.com/f1.png"})
+        )
+        async with AsyncSnapAPI(api_key="sk_test", max_retries=0) as snap:
+            result = await snap.screenshot_to_storage("https://example.com")
+        assert isinstance(result, dict)
+        assert result["url"] == "https://cdn.example.com/f1.png"
+
+    @respx.mock
+    async def test_sends_storage_destination_in_payload(self):
+        route = respx.post(f"{BASE}/v1/screenshot").mock(
+            return_value=json_response({"id": "f2", "url": "https://cdn.example.com/f2.png"})
+        )
+        async with AsyncSnapAPI(api_key="sk_test", max_retries=0) as snap:
+            await snap.screenshot_to_storage("https://example.com", destination="user_s3")
+        body = json.loads(route.calls.last.request.content)
+        assert body["storage"]["destination"] == "user_s3"
+
+
+# -- pdf() and pdf_to_file() ---------------------------------------------------
+
+class TestAsyncPdf:
+    async def test_raises_without_input(self):
+        snap = AsyncSnapAPI(api_key="sk_test", max_retries=0)
+        with pytest.raises(ValueError, match="url or html"):
+            await snap.pdf()
+        await snap.close()
+
+    @respx.mock
+    async def test_returns_bytes(self):
+        respx.post(f"{BASE}/v1/screenshot").mock(
+            return_value=httpx.Response(200, content=b"%PDF-1.4")
+        )
+        async with AsyncSnapAPI(api_key="sk_test", max_retries=0) as snap:
+            result = await snap.pdf(url="https://example.com")
+        assert isinstance(result, bytes)
+        assert result.startswith(b"%PDF")
+
+    @respx.mock
+    async def test_pdf_to_file(self):
+        respx.post(f"{BASE}/v1/screenshot").mock(
+            return_value=httpx.Response(200, content=b"%PDF-ASYNC")
+        )
+        async with AsyncSnapAPI(api_key="sk_test", max_retries=0) as snap:
+            with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
+                filepath = f.name
+            try:
+                result = await snap.pdf_to_file("https://example.com", filepath)
+                assert result == b"%PDF-ASYNC"
+                with open(filepath, "rb") as f:
+                    assert f.read() == b"%PDF-ASYNC"
+            finally:
+                os.unlink(filepath)
+
+
+# -- extract convenience methods -----------------------------------------------
+
+class TestAsyncExtractConvenience:
+    @respx.mock
+    async def test_extract_markdown(self):
+        payload = {"success": True, "type": "markdown", "content": "# Hello", "url": "https://example.com"}
+        respx.post(f"{BASE}/v1/extract").mock(return_value=json_response(payload))
+        async with AsyncSnapAPI(api_key="sk_test", max_retries=0) as snap:
+            result = await snap.extract_markdown("https://example.com")
+        body = json.loads(respx.calls.last.request.content)
+        assert body["type"] == "markdown"
+        assert result.content == "# Hello"
+
+    @respx.mock
+    async def test_extract_article(self):
+        payload = {"success": True, "type": "article", "content": "Article body", "url": "https://example.com"}
+        respx.post(f"{BASE}/v1/extract").mock(return_value=json_response(payload))
+        async with AsyncSnapAPI(api_key="sk_test", max_retries=0) as snap:
+            result = await snap.extract_article("https://example.com")
+        assert result.content == "Article body"
+
+    @respx.mock
+    async def test_extract_text(self):
+        payload = {"success": True, "type": "text", "content": "Plain", "url": "https://example.com"}
+        respx.post(f"{BASE}/v1/extract").mock(return_value=json_response(payload))
+        async with AsyncSnapAPI(api_key="sk_test", max_retries=0) as snap:
+            result = await snap.extract_text("https://example.com")
+        assert result.content == "Plain"
+
+    @respx.mock
+    async def test_extract_links(self):
+        payload = {"success": True, "type": "links", "content": ["https://a.com"], "url": "https://example.com"}
+        respx.post(f"{BASE}/v1/extract").mock(return_value=json_response(payload))
+        async with AsyncSnapAPI(api_key="sk_test", max_retries=0) as snap:
+            result = await snap.extract_links("https://example.com")
+        assert result.content == ["https://a.com"]
+
+    @respx.mock
+    async def test_extract_images(self):
+        payload = {"success": True, "type": "images", "content": ["https://img.com/a.png"], "url": "https://example.com"}
+        respx.post(f"{BASE}/v1/extract").mock(return_value=json_response(payload))
+        async with AsyncSnapAPI(api_key="sk_test", max_retries=0) as snap:
+            result = await snap.extract_images("https://example.com")
+        assert result.content == ["https://img.com/a.png"]
+
+    @respx.mock
+    async def test_extract_metadata(self):
+        payload = {"success": True, "type": "metadata", "content": {"title": "Test"}, "url": "https://example.com"}
+        respx.post(f"{BASE}/v1/extract").mock(return_value=json_response(payload))
+        async with AsyncSnapAPI(api_key="sk_test", max_retries=0) as snap:
+            result = await snap.extract_metadata("https://example.com")
+        assert result.content["title"] == "Test"
+
+
+# -- storage_* methods ---------------------------------------------------------
+
+class TestAsyncStorage:
+    @respx.mock
+    async def test_storage_list_files(self):
+        payload = {
+            "files": [{"id": "f1", "url": "https://cdn.example.com/f1.png"}],
+            "total": 1,
+        }
+        respx.get(f"{BASE}/v1/storage/files?limit=50&offset=0").mock(return_value=json_response(payload))
+        async with AsyncSnapAPI(api_key="sk_test", max_retries=0) as snap:
+            result = await snap.storage_list_files()
+        assert len(result.files) == 1
+        assert result.files[0].id == "f1"
+
+    @respx.mock
+    async def test_storage_get_file(self):
+        payload = {"id": "f1", "url": "https://cdn.example.com/f1.png"}
+        respx.get(f"{BASE}/v1/storage/files/f1").mock(return_value=json_response(payload))
+        async with AsyncSnapAPI(api_key="sk_test", max_retries=0) as snap:
+            result = await snap.storage_get_file("f1")
+        assert result.id == "f1"
+
+    @respx.mock
+    async def test_storage_delete_file(self):
+        respx.delete(f"{BASE}/v1/storage/files/f1").mock(return_value=json_response({"success": True}))
+        async with AsyncSnapAPI(api_key="sk_test", max_retries=0) as snap:
+            result = await snap.storage_delete_file("f1")
+        assert result.success is True
+
+    @respx.mock
+    async def test_storage_get_usage(self):
+        payload = {
+            "used": 512,
+            "limit": 1073741824,
+            "percentage": 0.00005,
+            "usedFormatted": "512 B",
+            "limitFormatted": "1 GB",
+        }
+        respx.get(f"{BASE}/v1/storage/usage").mock(return_value=json_response(payload))
+        async with AsyncSnapAPI(api_key="sk_test", max_retries=0) as snap:
+            result = await snap.storage_get_usage()
+        assert result.used == 512
+
+    @respx.mock
+    async def test_storage_configure_s3(self):
+        from snapapi import S3Config
+        respx.post(f"{BASE}/v1/storage/s3").mock(return_value=json_response({"success": True}))
+        config = S3Config(
+            s3_bucket="my-bucket",
+            s3_region="us-east-1",
+            s3_access_key_id="AKID",
+            s3_secret_access_key="secret",
+        )
+        async with AsyncSnapAPI(api_key="sk_test", max_retries=0) as snap:
+            result = await snap.storage_configure_s3(config)
+        assert result["success"] is True
+
+    @respx.mock
+    async def test_storage_test_s3(self):
+        respx.post(f"{BASE}/v1/storage/s3/test").mock(
+            return_value=json_response({"success": True, "message": "OK"})
+        )
+        async with AsyncSnapAPI(api_key="sk_test", max_retries=0) as snap:
+            result = await snap.storage_test_s3()
+        assert result.success is True
+
+
+# -- scheduled_* methods -------------------------------------------------------
+
+class TestAsyncScheduled:
+    @respx.mock
+    async def test_scheduled_create(self):
+        from snapapi import CreateScheduledOptions
+        payload = {
+            "id": "sched_1",
+            "url": "https://example.com",
+            "cronExpression": "0 9 * * *",
+        }
+        respx.post(f"{BASE}/v1/scheduled").mock(return_value=json_response(payload))
+        async with AsyncSnapAPI(api_key="sk_test", max_retries=0) as snap:
+            result = await snap.scheduled_create(
+                CreateScheduledOptions(url="https://example.com", cron_expression="0 9 * * *")
+            )
+        assert result.id == "sched_1"
+
+    @respx.mock
+    async def test_scheduled_list(self):
+        payload = {
+            "jobs": [{"id": "sched_1", "url": "https://example.com", "cronExpression": "0 9 * * *"}]
+        }
+        respx.get(f"{BASE}/v1/scheduled").mock(return_value=json_response(payload))
+        async with AsyncSnapAPI(api_key="sk_test", max_retries=0) as snap:
+            jobs = await snap.scheduled_list()
+        assert jobs[0].id == "sched_1"
+
+    @respx.mock
+    async def test_scheduled_delete(self):
+        respx.delete(f"{BASE}/v1/scheduled/sched_1").mock(return_value=json_response({"success": True}))
+        async with AsyncSnapAPI(api_key="sk_test", max_retries=0) as snap:
+            result = await snap.scheduled_delete("sched_1")
+        assert result.success is True
+
+
+# -- webhooks_* methods --------------------------------------------------------
+
+class TestAsyncWebhooks:
+    @respx.mock
+    async def test_webhooks_create(self):
+        from snapapi import CreateWebhookOptions
+        payload = {"id": "wh_1", "url": "https://my-app.com/hooks/snap", "events": ["screenshot.done"]}
+        respx.post(f"{BASE}/v1/webhooks").mock(return_value=json_response(payload))
+        async with AsyncSnapAPI(api_key="sk_test", max_retries=0) as snap:
+            result = await snap.webhooks_create(
+                CreateWebhookOptions(url="https://my-app.com/hooks/snap", events=["screenshot.done"])
+            )
+        assert result.id == "wh_1"
+
+    @respx.mock
+    async def test_webhooks_list(self):
+        payload = {
+            "webhooks": [{"id": "wh_1", "url": "https://my-app.com/hooks/snap", "events": ["screenshot.done"]}]
+        }
+        respx.get(f"{BASE}/v1/webhooks").mock(return_value=json_response(payload))
+        async with AsyncSnapAPI(api_key="sk_test", max_retries=0) as snap:
+            webhooks = await snap.webhooks_list()
+        assert webhooks[0].id == "wh_1"
+
+    @respx.mock
+    async def test_webhooks_delete(self):
+        respx.delete(f"{BASE}/v1/webhooks/wh_1").mock(return_value=json_response({"success": True}))
+        async with AsyncSnapAPI(api_key="sk_test", max_retries=0) as snap:
+            result = await snap.webhooks_delete("wh_1")
+        assert result.success is True
+
+
+# -- keys_* methods ------------------------------------------------------------
+
+class TestAsyncKeys:
+    @respx.mock
+    async def test_keys_create(self):
+        payload = {"id": "key_1", "name": "production", "key": "sk_live_abc123"}
+        respx.post(f"{BASE}/v1/keys").mock(return_value=json_response(payload))
+        async with AsyncSnapAPI(api_key="sk_test", max_retries=0) as snap:
+            result = await snap.keys_create("production")
+        assert result.key == "sk_live_abc123"
+
+    @respx.mock
+    async def test_keys_list(self):
+        payload = {"keys": [{"id": "key_1", "name": "production", "key": "sk_live_***"}]}
+        respx.get(f"{BASE}/v1/keys").mock(return_value=json_response(payload))
+        async with AsyncSnapAPI(api_key="sk_test", max_retries=0) as snap:
+            keys = await snap.keys_list()
+        assert keys[0].name == "production"
+
+    @respx.mock
+    async def test_keys_delete(self):
+        respx.delete(f"{BASE}/v1/keys/key_1").mock(return_value=json_response({"success": True}))
+        async with AsyncSnapAPI(api_key="sk_test", max_retries=0) as snap:
+            result = await snap.keys_delete("key_1")
+        assert result.success is True
+
+
+# -- Async network / timeout errors --------------------------------------------
+
+class TestAsyncNetworkErrors:
+    @respx.mock
+    async def test_raises_network_error_on_connection_failure(self):
+        respx.get(f"{BASE}/v1/ping").mock(side_effect=httpx.ConnectError("Connection refused"))
+        async with AsyncSnapAPI(api_key="sk_test", max_retries=0) as snap:
+            with pytest.raises(NetworkError) as exc_info:
+                await snap.ping()
+        assert exc_info.value.code == "NETWORK_ERROR"
+
+    @respx.mock
+    async def test_raises_timeout_error_on_timeout(self):
+        from snapapi import TimeoutError as SnapTimeoutError
+        respx.get(f"{BASE}/v1/ping").mock(side_effect=httpx.TimeoutException("Timed out"))
+        async with AsyncSnapAPI(api_key="sk_test", max_retries=0) as snap:
+            with pytest.raises(SnapTimeoutError) as exc_info:
+                await snap.ping()
+        assert exc_info.value.code == "TIMEOUT"

@@ -2,23 +2,35 @@
 
 All notable changes to the `snapapi` Python SDK are documented here.
 
-## [3.1.0] — 2026-03-16
+## [3.1.0] — 2026-03-17
 
 ### Added
-- `SnapAPI.screenshot_to_file(url, filepath, **kwargs)` -- capture and save to disk in one call.
-- `SnapAPI.pdf_to_file(url, filepath, **kwargs)` -- generate PDF and save to disk in one call.
-- `AsyncSnapAPI.screenshot_to_file()` and `AsyncSnapAPI.pdf_to_file()` -- async equivalents.
+- `SnapAPI.screenshot_to_storage(url, destination, **kwargs)` and `AsyncSnapAPI.screenshot_to_storage()` -- capture a screenshot and store it in SnapAPI cloud or your S3 bucket. Returns a dict with the public URL.
+- `SnapAPI.screenshot_to_file(url, filepath, **kwargs)` and `AsyncSnapAPI.screenshot_to_file()` -- capture and save to disk in one call.
+- `SnapAPI.pdf_to_file(url, filepath, **kwargs)` and `AsyncSnapAPI.pdf_to_file()` -- generate PDF and save to disk in one call.
+- Extract convenience methods on both clients: `extract_markdown`, `extract_article`, `extract_text`, `extract_links`, `extract_images`, `extract_metadata`. Each is a typed wrapper around `extract(type=...)`.
 - `SnapAPI.get_usage()` / `AsyncSnapAPI.get_usage()` -- primary usage method (maps to `/v1/usage`).
 - `X-Api-Key` header sent alongside `Authorization: Bearer` for maximum server compatibility.
-- Additional unit tests: video, og_image, analyze, screenshot_to_file, pdf_to_file, error class structure, non-retryable error paths.
-- Comprehensive README overhaul with full options table, advanced usage patterns, and batch processing examples.
+- Comprehensive unit tests for all storage, scheduled, webhooks, and keys endpoints in both sync and async clients.
+- Network error and timeout error test coverage for both clients.
+- Test coverage now meets the 80% threshold (80.25%).
 
 ### Changed
+- Default `base_url` corrected from `https://snapapi.pics` to `https://api.snapapi.pics`.
 - `SnapAPI.quota()` now calls `get_usage()` internally (both remain available).
+- `ScreenshotOptions.timeout` field type changed from `int` to `Optional[int]` (default `None`) so that the server's default timeout applies when not specified, rather than always sending `30000`.
 - HTTP module version bumped to `3.1.0` in User-Agent string.
+- README fully corrected: all code examples now match the actual implementation (storage methods, extract return field `.content` not `.data`, analyze return field `.result` not `.analysis`, storage/scheduled/webhooks/keys use flat method names not sub-namespace objects, PDF margins use `margins` dict not individual keyword args, `screenshot_to_storage` returns a dict not a dataclass).
 
 ### Fixed
-- Removed duplicate `block_trackers` and `block_chat_widgets` field definitions in `ScreenshotOptions` dataclass.
+- README example `result.data` for extract corrected to `result.content`.
+- README example `result.analysis` for analyze corrected to `result.result`.
+- README sub-namespace style calls (`snap.storage.list_files()`) corrected to flat method calls (`snap.storage_list_files()`).
+- README PDF example `margin_top` / `margin_bottom` kwargs do not exist on `pdf()` -- corrected to use `margins={"top": ..., "bottom": ...}`.
+- README `screenshot_to_storage()` return value corrected from `result.url` to `result["url"]` (returns `dict`, not dataclass).
+- `ScreenshotOptions.to_dict()` was unconditionally skipping `timeout` when it was `None`; now only emits `timeout` when set.
+- Removed duplicate `block_trackers` and `block_chat_widgets` field serialization in `ScreenshotOptions.to_dict()`.
+- Pytest warning about `pytestmark = pytest.mark.asyncio` applied to non-async test -- removed module-level mark (superseded by `asyncio_mode = "auto"` in `pyproject.toml`).
 
 ## [3.0.0] — 2026-03-14
 
