@@ -5,7 +5,7 @@ Hits the real API — requires a valid API key.
 
 Usage:
     SNAPAPI_KEY=sk_live_... python tests/integration.py
-    SNAPAPI_KEY=sk_live_... SNAPAPI_BASE_URL=https://snapapi.pics python tests/integration.py
+    SNAPAPI_KEY=sk_live_... SNAPAPI_BASE_URL=https://api.snapapi.pics python tests/integration.py
 """
 
 from __future__ import annotations
