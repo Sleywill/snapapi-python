@@ -239,6 +239,35 @@ class AsyncSnapAPI:
             return json.loads(raw)
         return raw
 
+    async def screenshot_to_storage(
+        self,
+        url: str,
+        destination: str = "snapapi",
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
+        """Capture a screenshot and store it in SnapAPI cloud (or your S3) asynchronously.
+
+        Args:
+            url: The URL to capture.
+            destination: Storage destination -- ``'snapapi'`` (default) or ``'user_s3'``.
+            **kwargs: Additional screenshot options.
+
+        Returns:
+            A dict with at minimum ``'url'`` pointing to the stored file.
+
+        Example::
+
+            result = await snap.screenshot_to_storage("https://example.com")
+            print(result["url"])  # Public CDN URL
+        """
+        kwargs.pop("storage", None)
+        result = await self.screenshot(url=url, storage={"destination": destination}, **kwargs)
+        if not isinstance(result, dict):
+            raise TypeError(
+                "screenshot_to_storage: expected JSON response but got binary."
+            )
+        return result
+
     async def screenshot_to_file(
         self,
         url: str,
@@ -399,6 +428,60 @@ class AsyncSnapAPI:
         )
         raw = await self._request("POST", "/v1/extract", opts.to_dict())
         return ExtractResult.from_dict(json.loads(raw))
+
+    # -- Extract convenience methods ---------------------------------------------
+
+    async def extract_markdown(self, url: str, **kwargs: Any) -> "ExtractResult":
+        """Extract page content as Markdown asynchronously.
+
+        Convenience wrapper for ``extract(url, type='markdown', ...)``.
+
+        Args:
+            url: URL to extract from.
+            **kwargs: Additional :meth:`extract` options.
+        """
+        kwargs.pop("type", None)
+        return await self.extract(url=url, type="markdown", **kwargs)
+
+    async def extract_article(self, url: str, **kwargs: Any) -> "ExtractResult":
+        """Extract main article body asynchronously.
+
+        Convenience wrapper for ``extract(url, type='article', ...)``.
+        """
+        kwargs.pop("type", None)
+        return await self.extract(url=url, type="article", **kwargs)
+
+    async def extract_text(self, url: str, **kwargs: Any) -> "ExtractResult":
+        """Extract plain text asynchronously.
+
+        Convenience wrapper for ``extract(url, type='text', ...)``.
+        """
+        kwargs.pop("type", None)
+        return await self.extract(url=url, type="text", **kwargs)
+
+    async def extract_links(self, url: str, **kwargs: Any) -> "ExtractResult":
+        """Extract all hyperlinks asynchronously.
+
+        Convenience wrapper for ``extract(url, type='links', ...)``.
+        """
+        kwargs.pop("type", None)
+        return await self.extract(url=url, type="links", **kwargs)
+
+    async def extract_images(self, url: str, **kwargs: Any) -> "ExtractResult":
+        """Extract all image URLs asynchronously.
+
+        Convenience wrapper for ``extract(url, type='images', ...)``.
+        """
+        kwargs.pop("type", None)
+        return await self.extract(url=url, type="images", **kwargs)
+
+    async def extract_metadata(self, url: str, **kwargs: Any) -> "ExtractResult":
+        """Extract page metadata asynchronously.
+
+        Convenience wrapper for ``extract(url, type='metadata', ...)``.
+        """
+        kwargs.pop("type", None)
+        return await self.extract(url=url, type="metadata", **kwargs)
 
     # -- Video -------------------------------------------------------------------
 

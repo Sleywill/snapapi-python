@@ -287,6 +287,36 @@ class SnapAPI:
             return json.loads(raw)
         return raw
 
+    def screenshot_to_storage(
+        self,
+        url: str,
+        destination: str = "snapapi",
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
+        """Capture a screenshot and store it in SnapAPI cloud (or your S3).
+
+        Args:
+            url: The URL to capture.
+            destination: Storage destination -- ``'snapapi'`` (default) or ``'user_s3'``.
+            **kwargs: Additional screenshot options (format, full_page, etc.).
+
+        Returns:
+            A dict with at minimum ``'url'`` pointing to the stored file.
+
+        Example::
+
+            result = snap.screenshot_to_storage("https://example.com")
+            print(result["url"])  # Public CDN URL
+        """
+        kwargs.pop("storage", None)
+        result = self.screenshot(url=url, storage={"destination": destination}, **kwargs)
+        if not isinstance(result, dict):
+            raise TypeError(
+                "screenshot_to_storage: expected JSON response but got binary. "
+                "Check that the destination is valid."
+            )
+        return result
+
     def screenshot_to_file(
         self,
         url: str,
@@ -519,6 +549,98 @@ class SnapAPI:
         )
         raw = self._request("POST", "/v1/extract", opts.to_dict())
         return ExtractResult.from_dict(json.loads(raw))
+
+    # -- Extract convenience methods ---------------------------------------------
+
+    def extract_markdown(self, url: str, **kwargs: Any) -> ExtractResult:
+        """Extract page content as Markdown.
+
+        Convenience wrapper for ``extract(url, type='markdown', ...)``.
+
+        Args:
+            url: URL to extract from.
+            **kwargs: Additional :meth:`extract` options.
+
+        Returns:
+            :class:`ExtractResult` with Markdown content in ``.content``.
+        """
+        kwargs.pop("type", None)
+        return self.extract(url=url, type="markdown", **kwargs)
+
+    def extract_article(self, url: str, **kwargs: Any) -> ExtractResult:
+        """Extract main article body from a page.
+
+        Convenience wrapper for ``extract(url, type='article', ...)``.
+
+        Args:
+            url: URL to extract from.
+            **kwargs: Additional :meth:`extract` options.
+
+        Returns:
+            :class:`ExtractResult` with cleaned article content in ``.content``.
+        """
+        kwargs.pop("type", None)
+        return self.extract(url=url, type="article", **kwargs)
+
+    def extract_text(self, url: str, **kwargs: Any) -> ExtractResult:
+        """Extract plain text from a page.
+
+        Convenience wrapper for ``extract(url, type='text', ...)``.
+
+        Args:
+            url: URL to extract from.
+            **kwargs: Additional :meth:`extract` options.
+
+        Returns:
+            :class:`ExtractResult` with plain text content in ``.content``.
+        """
+        kwargs.pop("type", None)
+        return self.extract(url=url, type="text", **kwargs)
+
+    def extract_links(self, url: str, **kwargs: Any) -> ExtractResult:
+        """Extract all hyperlinks from a page.
+
+        Convenience wrapper for ``extract(url, type='links', ...)``.
+
+        Args:
+            url: URL to extract from.
+            **kwargs: Additional :meth:`extract` options.
+
+        Returns:
+            :class:`ExtractResult` with a list of links in ``.content``.
+        """
+        kwargs.pop("type", None)
+        return self.extract(url=url, type="links", **kwargs)
+
+    def extract_images(self, url: str, **kwargs: Any) -> ExtractResult:
+        """Extract all image URLs from a page.
+
+        Convenience wrapper for ``extract(url, type='images', ...)``.
+
+        Args:
+            url: URL to extract from.
+            **kwargs: Additional :meth:`extract` options.
+
+        Returns:
+            :class:`ExtractResult` with a list of image URLs in ``.content``.
+        """
+        kwargs.pop("type", None)
+        return self.extract(url=url, type="images", **kwargs)
+
+    def extract_metadata(self, url: str, **kwargs: Any) -> ExtractResult:
+        """Extract page metadata (title, description, OG tags, etc.).
+
+        Convenience wrapper for ``extract(url, type='metadata', ...)``.
+
+        Args:
+            url: URL to extract from.
+            **kwargs: Additional :meth:`extract` options.
+
+        Returns:
+            :class:`ExtractResult` with metadata dict in ``.content``.
+        """
+        kwargs.pop("type", None)
+        return self.extract(url=url, type="metadata", **kwargs)
 
     # -- Video -------------------------------------------------------------------
 

@@ -20,7 +20,7 @@ from snapapi import (
     SnapAPIError,
 )
 
-BASE = "https://snapapi.pics"
+BASE = "https://api.snapapi.pics"
 
 pytestmark = pytest.mark.asyncio
 

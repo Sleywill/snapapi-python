@@ -24,7 +24,7 @@ from snapapi import (
     NetworkError,
 )
 
-BASE = "https://snapapi.pics"
+BASE = "https://api.snapapi.pics"
 
 
 # -- Helpers ------------------------------------------------------------------
@@ -504,3 +504,335 @@ class TestErrorClassStructure:
         err = NetworkError("connection refused")
         assert err.status_code == 0
         assert err.code == "NETWORK_ERROR"
+
+
+# -- screenshot_to_storage() ---------------------------------------------------
+
+class TestScreenshotToStorage:
+    @respx.mock
+    def test_returns_dict_with_url(self):
+        respx.post(f"{BASE}/v1/screenshot").mock(
+            return_value=json_response({"id": "f1", "url": "https://cdn.example.com/f1.png"})
+        )
+        snap = make_client()
+        result = snap.screenshot_to_storage("https://example.com")
+        assert isinstance(result, dict)
+        assert result["url"] == "https://cdn.example.com/f1.png"
+
+    @respx.mock
+    def test_sends_storage_destination_in_payload(self):
+        route = respx.post(f"{BASE}/v1/screenshot").mock(
+            return_value=json_response({"id": "f2", "url": "https://cdn.example.com/f2.png"})
+        )
+        snap = make_client()
+        snap.screenshot_to_storage("https://example.com", destination="user_s3")
+        body = json.loads(route.calls.last.request.content)
+        assert body["storage"]["destination"] == "user_s3"
+
+
+# -- extract convenience methods -----------------------------------------------
+
+class TestExtractConvenience:
+    @respx.mock
+    def test_extract_markdown(self):
+        payload = {"success": True, "type": "markdown", "content": "# Hello", "url": "https://example.com"}
+        respx.post(f"{BASE}/v1/extract").mock(return_value=json_response(payload))
+        snap = make_client()
+        result = snap.extract_markdown("https://example.com")
+        body = json.loads(respx.calls.last.request.content)
+        assert body["type"] == "markdown"
+        assert result.content == "# Hello"
+
+    @respx.mock
+    def test_extract_article(self):
+        payload = {"success": True, "type": "article", "content": "Article body", "url": "https://example.com"}
+        respx.post(f"{BASE}/v1/extract").mock(return_value=json_response(payload))
+        snap = make_client()
+        result = snap.extract_article("https://example.com")
+        body = json.loads(respx.calls.last.request.content)
+        assert body["type"] == "article"
+        assert result.content == "Article body"
+
+    @respx.mock
+    def test_extract_text(self):
+        payload = {"success": True, "type": "text", "content": "Plain text", "url": "https://example.com"}
+        respx.post(f"{BASE}/v1/extract").mock(return_value=json_response(payload))
+        snap = make_client()
+        result = snap.extract_text("https://example.com")
+        body = json.loads(respx.calls.last.request.content)
+        assert body["type"] == "text"
+        assert result.content == "Plain text"
+
+    @respx.mock
+    def test_extract_links(self):
+        payload = {"success": True, "type": "links", "content": ["https://a.com"], "url": "https://example.com"}
+        respx.post(f"{BASE}/v1/extract").mock(return_value=json_response(payload))
+        snap = make_client()
+        result = snap.extract_links("https://example.com")
+        body = json.loads(respx.calls.last.request.content)
+        assert body["type"] == "links"
+        assert result.content == ["https://a.com"]
+
+    @respx.mock
+    def test_extract_images(self):
+        payload = {"success": True, "type": "images", "content": ["https://img.com/a.png"], "url": "https://example.com"}
+        respx.post(f"{BASE}/v1/extract").mock(return_value=json_response(payload))
+        snap = make_client()
+        result = snap.extract_images("https://example.com")
+        body = json.loads(respx.calls.last.request.content)
+        assert body["type"] == "images"
+
+    @respx.mock
+    def test_extract_metadata(self):
+        payload = {"success": True, "type": "metadata", "content": {"title": "Test"}, "url": "https://example.com"}
+        respx.post(f"{BASE}/v1/extract").mock(return_value=json_response(payload))
+        snap = make_client()
+        result = snap.extract_metadata("https://example.com")
+        body = json.loads(respx.calls.last.request.content)
+        assert body["type"] == "metadata"
+        assert result.content["title"] == "Test"
+
+
+# -- storage_* methods ---------------------------------------------------------
+
+class TestStorage:
+    @respx.mock
+    def test_storage_list_files(self):
+        payload = {
+            "files": [{"id": "f1", "url": "https://cdn.example.com/f1.png"}],
+            "total": 1,
+        }
+        respx.get(f"{BASE}/v1/storage/files?limit=50&offset=0").mock(return_value=json_response(payload))
+        snap = make_client()
+        result = snap.storage_list_files()
+        assert len(result.files) == 1
+        assert result.files[0].id == "f1"
+
+    @respx.mock
+    def test_storage_get_file(self):
+        payload = {"id": "f1", "url": "https://cdn.example.com/f1.png", "filename": "f1.png"}
+        respx.get(f"{BASE}/v1/storage/files/f1").mock(return_value=json_response(payload))
+        snap = make_client()
+        result = snap.storage_get_file("f1")
+        assert result.id == "f1"
+        assert result.filename == "f1.png"
+
+    @respx.mock
+    def test_storage_delete_file(self):
+        respx.delete(f"{BASE}/v1/storage/files/f1").mock(return_value=json_response({"success": True}))
+        snap = make_client()
+        result = snap.storage_delete_file("f1")
+        assert result.success is True
+
+    @respx.mock
+    def test_storage_get_usage(self):
+        payload = {
+            "used": 1024,
+            "limit": 1073741824,
+            "percentage": 0.0001,
+            "usedFormatted": "1 KB",
+            "limitFormatted": "1 GB",
+        }
+        respx.get(f"{BASE}/v1/storage/usage").mock(return_value=json_response(payload))
+        snap = make_client()
+        result = snap.storage_get_usage()
+        assert result.used == 1024
+
+    @respx.mock
+    def test_storage_configure_s3(self):
+        from snapapi import S3Config
+        respx.post(f"{BASE}/v1/storage/s3").mock(return_value=json_response({"success": True}))
+        snap = make_client()
+        config = S3Config(
+            s3_bucket="my-bucket",
+            s3_region="us-east-1",
+            s3_access_key_id="AKID",
+            s3_secret_access_key="secret",
+        )
+        result = snap.storage_configure_s3(config)
+        assert result["success"] is True
+
+    @respx.mock
+    def test_storage_test_s3(self):
+        respx.post(f"{BASE}/v1/storage/s3/test").mock(
+            return_value=json_response({"success": True, "message": "Connection OK"})
+        )
+        snap = make_client()
+        result = snap.storage_test_s3()
+        assert result.success is True
+        assert result.message == "Connection OK"
+
+
+# -- scheduled_* methods -------------------------------------------------------
+
+class TestScheduled:
+    @respx.mock
+    def test_scheduled_create(self):
+        from snapapi import CreateScheduledOptions
+        payload = {
+            "id": "sched_1",
+            "url": "https://example.com",
+            "cronExpression": "0 9 * * *",
+            "nextRun": "2026-04-01T09:00:00Z",
+        }
+        respx.post(f"{BASE}/v1/scheduled").mock(return_value=json_response(payload))
+        snap = make_client()
+        options = CreateScheduledOptions(
+            url="https://example.com",
+            cron_expression="0 9 * * *",
+        )
+        result = snap.scheduled_create(options)
+        assert result.id == "sched_1"
+        assert result.cron_expression == "0 9 * * *"
+
+    @respx.mock
+    def test_scheduled_list(self):
+        payload = {
+            "jobs": [
+                {"id": "sched_1", "url": "https://example.com", "cronExpression": "0 9 * * *"},
+            ]
+        }
+        respx.get(f"{BASE}/v1/scheduled").mock(return_value=json_response(payload))
+        snap = make_client()
+        jobs = snap.scheduled_list()
+        assert len(jobs) == 1
+        assert jobs[0].id == "sched_1"
+
+    @respx.mock
+    def test_scheduled_list_returns_list_directly(self):
+        payload = [
+            {"id": "sched_2", "url": "https://example.com", "cronExpression": "0 10 * * *"},
+        ]
+        respx.get(f"{BASE}/v1/scheduled").mock(return_value=json_response(payload))
+        snap = make_client()
+        jobs = snap.scheduled_list()
+        assert jobs[0].id == "sched_2"
+
+    @respx.mock
+    def test_scheduled_delete(self):
+        respx.delete(f"{BASE}/v1/scheduled/sched_1").mock(return_value=json_response({"success": True}))
+        snap = make_client()
+        result = snap.scheduled_delete("sched_1")
+        assert result.success is True
+
+
+# -- webhooks_* methods --------------------------------------------------------
+
+class TestWebhooks:
+    @respx.mock
+    def test_webhooks_create(self):
+        from snapapi import CreateWebhookOptions
+        payload = {
+            "id": "wh_1",
+            "url": "https://my-app.com/hooks/snap",
+            "events": ["screenshot.done"],
+        }
+        respx.post(f"{BASE}/v1/webhooks").mock(return_value=json_response(payload))
+        snap = make_client()
+        options = CreateWebhookOptions(
+            url="https://my-app.com/hooks/snap",
+            events=["screenshot.done"],
+            secret="mysecret",
+        )
+        result = snap.webhooks_create(options)
+        assert result.id == "wh_1"
+        assert result.events == ["screenshot.done"]
+
+    @respx.mock
+    def test_webhooks_list(self):
+        payload = {
+            "webhooks": [
+                {"id": "wh_1", "url": "https://my-app.com/hooks/snap", "events": ["screenshot.done"]},
+            ]
+        }
+        respx.get(f"{BASE}/v1/webhooks").mock(return_value=json_response(payload))
+        snap = make_client()
+        webhooks = snap.webhooks_list()
+        assert len(webhooks) == 1
+        assert webhooks[0].id == "wh_1"
+
+    @respx.mock
+    def test_webhooks_list_returns_list_directly(self):
+        payload = [
+            {"id": "wh_2", "url": "https://my-app.com/hooks/snap2", "events": ["pdf.done"]},
+        ]
+        respx.get(f"{BASE}/v1/webhooks").mock(return_value=json_response(payload))
+        snap = make_client()
+        webhooks = snap.webhooks_list()
+        assert webhooks[0].id == "wh_2"
+
+    @respx.mock
+    def test_webhooks_delete(self):
+        respx.delete(f"{BASE}/v1/webhooks/wh_1").mock(return_value=json_response({"success": True}))
+        snap = make_client()
+        result = snap.webhooks_delete("wh_1")
+        assert result.success is True
+
+
+# -- keys_* methods ------------------------------------------------------------
+
+class TestKeys:
+    @respx.mock
+    def test_keys_create(self):
+        payload = {"id": "key_1", "name": "production", "key": "sk_live_abc123"}
+        respx.post(f"{BASE}/v1/keys").mock(return_value=json_response(payload))
+        snap = make_client()
+        result = snap.keys_create("production")
+        assert result.id == "key_1"
+        assert result.key == "sk_live_abc123"
+
+    @respx.mock
+    def test_keys_list(self):
+        payload = {
+            "keys": [
+                {"id": "key_1", "name": "production", "key": "sk_live_***"},
+            ]
+        }
+        respx.get(f"{BASE}/v1/keys").mock(return_value=json_response(payload))
+        snap = make_client()
+        keys = snap.keys_list()
+        assert len(keys) == 1
+        assert keys[0].name == "production"
+
+    @respx.mock
+    def test_keys_list_returns_list_directly(self):
+        payload = [
+            {"id": "key_2", "name": "staging", "key": "sk_live_***"},
+        ]
+        respx.get(f"{BASE}/v1/keys").mock(return_value=json_response(payload))
+        snap = make_client()
+        keys = snap.keys_list()
+        assert keys[0].id == "key_2"
+
+    @respx.mock
+    def test_keys_delete(self):
+        respx.delete(f"{BASE}/v1/keys/key_1").mock(return_value=json_response({"success": True}))
+        snap = make_client()
+        result = snap.keys_delete("key_1")
+        assert result.success is True
+
+
+# -- Network and timeout errors ------------------------------------------------
+
+class TestNetworkErrors:
+    @respx.mock
+    def test_raises_network_error_on_connection_failure(self):
+        respx.get(f"{BASE}/v1/ping").mock(side_effect=httpx.ConnectError("Connection refused"))
+        snap = make_client()
+        with pytest.raises(NetworkError) as exc_info:
+            snap.ping()
+        assert exc_info.value.code == "NETWORK_ERROR"
+
+    @respx.mock
+    def test_raises_timeout_error_on_timeout(self):
+        respx.get(f"{BASE}/v1/ping").mock(side_effect=httpx.TimeoutException("Timed out"))
+        snap = make_client()
+        with pytest.raises(SnapTimeoutError) as exc_info:
+            snap.ping()
+        assert exc_info.value.code == "TIMEOUT"
+
+    @respx.mock
+    def test_error_repr_contains_class_name(self):
+        err = SnapAPIError("test message", "TEST_CODE", 418)
+        assert "SnapAPIError" in repr(err)
+        assert "418" in repr(err)

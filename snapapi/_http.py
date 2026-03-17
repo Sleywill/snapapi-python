@@ -22,7 +22,7 @@ from .exceptions import (
 )
 
 SDK_VERSION = "3.1.0"
-DEFAULT_BASE_URL = "https://snapapi.pics"
+DEFAULT_BASE_URL = "https://api.snapapi.pics"
 DEFAULT_TIMEOUT = 60.0  # seconds
 DEFAULT_MAX_RETRIES = 3
 DEFAULT_RETRY_DELAY = 0.5  # seconds

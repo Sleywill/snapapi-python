@@ -209,7 +209,7 @@ class ScreenshotOptions:
     clip_width: Optional[int] = None
     clip_height: Optional[int] = None
     delay: int = 0
-    timeout: int = 30000
+    timeout: Optional[int] = None
     wait_until: Optional[Literal["load", "domcontentloaded", "networkidle"]] = None
     wait_for_selector: Optional[str] = None
     wait_for_selector_timeout: Optional[int] = None
@@ -298,7 +298,7 @@ class ScreenshotOptions:
             result["clipHeight"] = self.clip_height
         if self.delay > 0:
             result["delay"] = self.delay
-        if self.timeout != 30000:
+        if self.timeout is not None:
             result["timeout"] = self.timeout
         if self.wait_until:
             result["waitUntil"] = self.wait_until
