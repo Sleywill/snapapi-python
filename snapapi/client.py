@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, dict, list
 
 try:
     import httpx
@@ -33,7 +33,6 @@ from ._http import (
     DEFAULT_MAX_RETRIES,
     DEFAULT_RETRY_DELAY,
     DEFAULT_TIMEOUT,
-    SDK_VERSION,
     build_headers,
     compute_backoff,
     parse_error_response,
@@ -54,7 +53,6 @@ from .types import (
     ExtractResult,
     Geolocation,
     HttpAuth,
-    PdfOptions,
     ProxyConfig,
     S3Config,
     S3TestResult,
@@ -62,13 +60,11 @@ from .types import (
     ScrapeOptions,
     ScrapeResult,
     ScreenshotOptions,
-    ScreenshotResult,
     StorageFile,
     StorageListResult,
     StorageUsage,
     UsageResult,
     VideoOptions,
-    VideoResult,
     Webhook,
 )
 
@@ -93,8 +89,8 @@ class SnapAPI:
     def __init__(
         self,
         api_key: str,
-        base_url: Optional[str] = None,
-        timeout: Optional[float] = None,
+        base_url: str | None = None,
+        timeout: float | None = None,
         max_retries: int = DEFAULT_MAX_RETRIES,
         retry_delay: float = DEFAULT_RETRY_DELAY,
     ) -> None:
@@ -114,7 +110,7 @@ class SnapAPI:
 
     # -- Context manager ---------------------------------------------------------
 
-    def __enter__(self) -> "SnapAPI":
+    def __enter__(self) -> SnapAPI:
         return self
 
     def __exit__(self, *_: Any) -> None:
@@ -128,50 +124,50 @@ class SnapAPI:
 
     def screenshot(
         self,
-        url: Optional[str] = None,
-        html: Optional[str] = None,
-        markdown: Optional[str] = None,
+        url: str | None = None,
+        html: str | None = None,
+        markdown: str | None = None,
         format: str = "png",
-        quality: Optional[int] = None,
-        device: Optional[DevicePreset] = None,
+        quality: int | None = None,
+        device: DevicePreset | None = None,
         width: int = 1280,
         height: int = 800,
         device_scale_factor: float = 1.0,
         is_mobile: bool = False,
         has_touch: bool = False,
         full_page: bool = False,
-        full_page_scroll_delay: Optional[int] = None,
-        full_page_max_height: Optional[int] = None,
-        selector: Optional[str] = None,
+        full_page_scroll_delay: int | None = None,
+        full_page_max_height: int | None = None,
+        selector: str | None = None,
         delay: int = 0,
-        timeout: Optional[int] = None,
-        wait_until: Optional[str] = None,
-        wait_for_selector: Optional[str] = None,
+        timeout: int | None = None,
+        wait_until: str | None = None,
+        wait_for_selector: str | None = None,
         dark_mode: bool = False,
         reduced_motion: bool = False,
-        css: Optional[str] = None,
-        javascript: Optional[str] = None,
-        hide_selectors: Optional[List[str]] = None,
-        click_selector: Optional[str] = None,
+        css: str | None = None,
+        javascript: str | None = None,
+        hide_selectors: list[str] | None = None,
+        click_selector: str | None = None,
         block_ads: bool = False,
         block_trackers: bool = False,
         block_cookie_banners: bool = False,
         block_chat_widgets: bool = False,
-        user_agent: Optional[str] = None,
-        extra_headers: Optional[Dict[str, str]] = None,
-        cookies: Optional[List[Cookie]] = None,
-        http_auth: Optional[HttpAuth] = None,
-        proxy: Optional[ProxyConfig] = None,
-        premium_proxy: Optional[bool] = None,
-        geolocation: Optional[Geolocation] = None,
-        timezone: Optional[str] = None,
-        storage: Optional[Dict[str, Any]] = None,
-        webhook_url: Optional[str] = None,
-        job_id: Optional[str] = None,
-        page_size: Optional[str] = None,
-        landscape: Optional[bool] = None,
-        margins: Optional[Dict[str, str]] = None,
-    ) -> Union[bytes, Dict[str, Any]]:
+        user_agent: str | None = None,
+        extra_headers: dict[str, str] | None = None,
+        cookies: list[Cookie] | None = None,
+        http_auth: HttpAuth | None = None,
+        proxy: ProxyConfig | None = None,
+        premium_proxy: bool | None = None,
+        geolocation: Geolocation | None = None,
+        timezone: str | None = None,
+        storage: dict[str, Any] | None = None,
+        webhook_url: str | None = None,
+        job_id: str | None = None,
+        page_size: str | None = None,
+        landscape: bool | None = None,
+        margins: dict[str, str] | None = None,
+    ) -> bytes | dict[str, Any]:
         """Capture a screenshot of a URL, HTML, or Markdown string.
 
         Args:
@@ -292,7 +288,7 @@ class SnapAPI:
         url: str,
         destination: str = "snapapi",
         **kwargs: Any,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Capture a screenshot and store it in SnapAPI cloud (or your S3).
 
         Args:
@@ -362,17 +358,17 @@ class SnapAPI:
 
     def pdf(
         self,
-        url: Optional[str] = None,
-        html: Optional[str] = None,
+        url: str | None = None,
+        html: str | None = None,
         page_size: str = "a4",
         landscape: bool = False,
-        margins: Optional[Dict[str, str]] = None,
-        header_template: Optional[str] = None,
-        footer_template: Optional[str] = None,
+        margins: dict[str, str] | None = None,
+        header_template: str | None = None,
+        footer_template: str | None = None,
         display_header_footer: bool = False,
-        scale: Optional[float] = None,
+        scale: float | None = None,
         delay: int = 0,
-        wait_for_selector: Optional[str] = None,
+        wait_for_selector: str | None = None,
     ) -> bytes:
         """Convert a URL or HTML string to a PDF file.
 
@@ -398,7 +394,7 @@ class SnapAPI:
         if not url and not html:
             raise ValueError("One of url or html is required")
 
-        payload: Dict[str, Any] = {"format": "pdf", "pageSize": page_size}
+        payload: dict[str, Any] = {"format": "pdf", "pageSize": page_size}
         if url:
             payload["url"] = url
         if html:
@@ -453,11 +449,11 @@ class SnapAPI:
         url: str,
         type: str = "text",
         pages: int = 1,
-        wait_ms: Optional[int] = None,
-        proxy: Optional[str] = None,
-        premium_proxy: Optional[bool] = None,
+        wait_ms: int | None = None,
+        proxy: str | None = None,
+        premium_proxy: bool | None = None,
         block_resources: bool = False,
-        locale: Optional[str] = None,
+        locale: str | None = None,
     ) -> ScrapeResult:
         """Scrape text, HTML, or links from one or more pages.
 
@@ -499,15 +495,15 @@ class SnapAPI:
         self,
         url: str,
         type: str = "markdown",
-        selector: Optional[str] = None,
-        wait_for: Optional[str] = None,
-        timeout: Optional[int] = None,
+        selector: str | None = None,
+        wait_for: str | None = None,
+        timeout: int | None = None,
         dark_mode: bool = False,
         block_ads: bool = False,
         block_cookie_banners: bool = False,
-        include_images: Optional[bool] = None,
-        max_length: Optional[int] = None,
-        clean_output: Optional[bool] = None,
+        include_images: bool | None = None,
+        max_length: int | None = None,
+        clean_output: bool | None = None,
     ) -> ExtractResult:
         """Extract structured content from a web page.
 
@@ -653,11 +649,11 @@ class SnapAPI:
         duration: int = 5,
         fps: int = 25,
         scrolling: bool = False,
-        scroll_speed: Optional[int] = None,
-        scroll_delay: Optional[int] = None,
-        scroll_duration: Optional[int] = None,
-        scroll_by: Optional[int] = None,
-        scroll_easing: Optional[str] = None,
+        scroll_speed: int | None = None,
+        scroll_delay: int | None = None,
+        scroll_duration: int | None = None,
+        scroll_by: int | None = None,
+        scroll_easing: str | None = None,
         scroll_back: bool = True,
         scroll_complete: bool = True,
         dark_mode: bool = False,
@@ -756,17 +752,17 @@ class SnapAPI:
         self,
         url: str,
         prompt: str,
-        provider: Optional[str] = None,
-        api_key: Optional[str] = None,
-        model: Optional[str] = None,
-        json_schema: Optional[Dict[str, Any]] = None,
-        include_screenshot: Optional[bool] = None,
-        include_metadata: Optional[bool] = None,
-        max_content_length: Optional[int] = None,
-        timeout: Optional[int] = None,
+        provider: str | None = None,
+        api_key: str | None = None,
+        model: str | None = None,
+        json_schema: dict[str, Any] | None = None,
+        include_screenshot: bool | None = None,
+        include_metadata: bool | None = None,
+        max_content_length: int | None = None,
+        timeout: int | None = None,
         block_ads: bool = False,
         block_cookie_banners: bool = False,
-        wait_for: Optional[str] = None,
+        wait_for: str | None = None,
     ) -> AnalyzeResult:
         """Analyze a web page with an LLM (BYOK -- bring your own key).
 
@@ -844,7 +840,7 @@ class SnapAPI:
 
     # -- Ping --------------------------------------------------------------------
 
-    def ping(self) -> Dict[str, Any]:
+    def ping(self) -> dict[str, Any]:
         """Check API availability.
 
         Returns:
@@ -856,7 +852,7 @@ class SnapAPI:
     # -- Storage -----------------------------------------------------------------
 
     def storage_list_files(self, limit: int = 50, offset: int = 0) -> StorageListResult:
-        """List files stored in SnapAPI cloud.
+        """list files stored in SnapAPI cloud.
 
         Args:
             limit: Maximum results per page (default: 50).
@@ -901,7 +897,7 @@ class SnapAPI:
         raw = self._request("GET", "/v1/storage/usage")
         return StorageUsage.from_dict(json.loads(raw))
 
-    def storage_configure_s3(self, config: S3Config) -> Dict[str, Any]:
+    def storage_configure_s3(self, config: S3Config) -> dict[str, Any]:
         """Configure a custom S3-compatible storage backend.
 
         Args:
@@ -937,11 +933,11 @@ class SnapAPI:
         raw = self._request("POST", "/v1/scheduled", options.to_dict())
         return ScheduledScreenshot.from_dict(json.loads(raw))
 
-    def scheduled_list(self) -> List[ScheduledScreenshot]:
-        """List all scheduled screenshot jobs.
+    def scheduled_list(self) -> list[ScheduledScreenshot]:
+        """list all scheduled screenshot jobs.
 
         Returns:
-            List of :class:`ScheduledScreenshot`.
+            list of :class:`ScheduledScreenshot`.
         """
         raw = self._request("GET", "/v1/scheduled")
         data = json.loads(raw)
@@ -974,11 +970,11 @@ class SnapAPI:
         raw = self._request("POST", "/v1/webhooks", options.to_dict())
         return Webhook.from_dict(json.loads(raw))
 
-    def webhooks_list(self) -> List[Webhook]:
-        """List all registered webhooks.
+    def webhooks_list(self) -> list[Webhook]:
+        """list all registered webhooks.
 
         Returns:
-            List of :class:`Webhook`.
+            list of :class:`Webhook`.
         """
         raw = self._request("GET", "/v1/webhooks")
         data = json.loads(raw)
@@ -999,11 +995,11 @@ class SnapAPI:
 
     # -- API Keys ----------------------------------------------------------------
 
-    def keys_list(self) -> List[ApiKey]:
-        """List all API keys. Key values are masked.
+    def keys_list(self) -> list[ApiKey]:
+        """list all API keys. Key values are masked.
 
         Returns:
-            List of :class:`ApiKey`.
+            list of :class:`ApiKey`.
         """
         raw = self._request("GET", "/v1/keys")
         data = json.loads(raw)
@@ -1040,7 +1036,7 @@ class SnapAPI:
         self,
         method: str,
         path: str,
-        data: Optional[Dict[str, Any]] = None,
+        data: dict[str, Any] | None = None,
     ) -> bytes:
         """Execute an HTTP request with retry logic.
 

@@ -8,16 +8,13 @@ public API. It may change without notice.
 from __future__ import annotations
 
 import json
-import time
-from typing import Any, Dict, Optional
+from typing import Any, dict
 
 from .exceptions import (
     AuthenticationError,
-    NetworkError,
     QuotaExceededError,
     RateLimitError,
     SnapAPIError,
-    TimeoutError,
     ValidationError,
 )
 
@@ -29,7 +26,7 @@ DEFAULT_RETRY_DELAY = 0.5  # seconds
 MAX_RETRY_DELAY = 30.0  # seconds
 
 
-def build_headers(api_key: str) -> Dict[str, str]:
+def build_headers(api_key: str) -> dict[str, str]:
     """Build the standard HTTP headers for every request."""
     return {
         "X-Api-Key": api_key,
@@ -39,10 +36,10 @@ def build_headers(api_key: str) -> Dict[str, str]:
     }
 
 
-def parse_error_response(status_code: int, body: bytes, headers: Dict[str, Any]) -> SnapAPIError:
+def parse_error_response(status_code: int, body: bytes, headers: dict[str, Any]) -> SnapAPIError:
     """Parse an error HTTP response into the appropriate SnapAPI exception."""
     try:
-        data: Dict[str, Any] = json.loads(body)
+        data: dict[str, Any] = json.loads(body)
     except (json.JSONDecodeError, ValueError):
         data = {}
 
@@ -67,7 +64,7 @@ def parse_error_response(status_code: int, body: bytes, headers: Dict[str, Any])
         return SnapAPIError(message=message, code=code, status_code=402, details=details)
 
     if status_code == 422:
-        fields: Dict[str, str] = data.get("fields", {})
+        fields: dict[str, str] = data.get("fields", {})
         return ValidationError(message=message, fields=fields, details=details)
 
     if status_code == 429:

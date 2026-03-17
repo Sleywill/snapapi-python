@@ -23,7 +23,7 @@ from __future__ import annotations
 import asyncio
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, dict, list
 
 try:
     import httpx
@@ -92,8 +92,8 @@ class AsyncSnapAPI:
     def __init__(
         self,
         api_key: str,
-        base_url: Optional[str] = None,
-        timeout: Optional[float] = None,
+        base_url: str | None = None,
+        timeout: float | None = None,
         max_retries: int = DEFAULT_MAX_RETRIES,
         retry_delay: float = DEFAULT_RETRY_DELAY,
     ) -> None:
@@ -105,11 +105,11 @@ class AsyncSnapAPI:
         self.timeout = timeout if timeout is not None else DEFAULT_TIMEOUT
         self.max_retries = max_retries
         self.retry_delay = retry_delay
-        self._client: Optional[httpx.AsyncClient] = None
+        self._client: httpx.AsyncClient | None = None
 
     # -- Context manager ---------------------------------------------------------
 
-    async def __aenter__(self) -> "AsyncSnapAPI":
+    async def __aenter__(self) -> AsyncSnapAPI:
         self._client = httpx.AsyncClient(
             timeout=self.timeout,
             headers=build_headers(self.api_key),
@@ -137,50 +137,50 @@ class AsyncSnapAPI:
 
     async def screenshot(
         self,
-        url: Optional[str] = None,
-        html: Optional[str] = None,
-        markdown: Optional[str] = None,
+        url: str | None = None,
+        html: str | None = None,
+        markdown: str | None = None,
         format: str = "png",
-        quality: Optional[int] = None,
-        device: Optional[DevicePreset] = None,
+        quality: int | None = None,
+        device: DevicePreset | None = None,
         width: int = 1280,
         height: int = 800,
         device_scale_factor: float = 1.0,
         is_mobile: bool = False,
         has_touch: bool = False,
         full_page: bool = False,
-        full_page_scroll_delay: Optional[int] = None,
-        full_page_max_height: Optional[int] = None,
-        selector: Optional[str] = None,
+        full_page_scroll_delay: int | None = None,
+        full_page_max_height: int | None = None,
+        selector: str | None = None,
         delay: int = 0,
-        timeout: Optional[int] = None,
-        wait_until: Optional[str] = None,
-        wait_for_selector: Optional[str] = None,
+        timeout: int | None = None,
+        wait_until: str | None = None,
+        wait_for_selector: str | None = None,
         dark_mode: bool = False,
         reduced_motion: bool = False,
-        css: Optional[str] = None,
-        javascript: Optional[str] = None,
-        hide_selectors: Optional[List[str]] = None,
-        click_selector: Optional[str] = None,
+        css: str | None = None,
+        javascript: str | None = None,
+        hide_selectors: list[str] | None = None,
+        click_selector: str | None = None,
         block_ads: bool = False,
         block_trackers: bool = False,
         block_cookie_banners: bool = False,
         block_chat_widgets: bool = False,
-        user_agent: Optional[str] = None,
-        extra_headers: Optional[Dict[str, str]] = None,
-        cookies: Optional[List[Cookie]] = None,
-        http_auth: Optional[HttpAuth] = None,
-        proxy: Optional[ProxyConfig] = None,
-        premium_proxy: Optional[bool] = None,
-        geolocation: Optional[Geolocation] = None,
-        timezone: Optional[str] = None,
-        storage: Optional[Dict[str, Any]] = None,
-        webhook_url: Optional[str] = None,
-        job_id: Optional[str] = None,
-        page_size: Optional[str] = None,
-        landscape: Optional[bool] = None,
-        margins: Optional[Dict[str, str]] = None,
-    ) -> Union[bytes, Dict[str, Any]]:
+        user_agent: str | None = None,
+        extra_headers: dict[str, str] | None = None,
+        cookies: list[Cookie] | None = None,
+        http_auth: HttpAuth | None = None,
+        proxy: ProxyConfig | None = None,
+        premium_proxy: bool | None = None,
+        geolocation: Geolocation | None = None,
+        timezone: str | None = None,
+        storage: dict[str, Any] | None = None,
+        webhook_url: str | None = None,
+        job_id: str | None = None,
+        page_size: str | None = None,
+        landscape: bool | None = None,
+        margins: dict[str, str] | None = None,
+    ) -> bytes | dict[str, Any]:
         """Capture a screenshot asynchronously.
 
         Args and returns are identical to :meth:`SnapAPI.screenshot`.
@@ -244,7 +244,7 @@ class AsyncSnapAPI:
         url: str,
         destination: str = "snapapi",
         **kwargs: Any,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Capture a screenshot and store it in SnapAPI cloud (or your S3) asynchronously.
 
         Args:
@@ -300,17 +300,17 @@ class AsyncSnapAPI:
 
     async def pdf(
         self,
-        url: Optional[str] = None,
-        html: Optional[str] = None,
+        url: str | None = None,
+        html: str | None = None,
         page_size: str = "a4",
         landscape: bool = False,
-        margins: Optional[Dict[str, str]] = None,
-        header_template: Optional[str] = None,
-        footer_template: Optional[str] = None,
+        margins: dict[str, str] | None = None,
+        header_template: str | None = None,
+        footer_template: str | None = None,
         display_header_footer: bool = False,
-        scale: Optional[float] = None,
+        scale: float | None = None,
         delay: int = 0,
-        wait_for_selector: Optional[str] = None,
+        wait_for_selector: str | None = None,
     ) -> bytes:
         """Convert a URL or HTML string to a PDF asynchronously.
 
@@ -319,7 +319,7 @@ class AsyncSnapAPI:
         if not url and not html:
             raise ValueError("One of url or html is required")
 
-        payload: Dict[str, Any] = {"format": "pdf", "pageSize": page_size}
+        payload: dict[str, Any] = {"format": "pdf", "pageSize": page_size}
         if url:
             payload["url"] = url
         if html:
@@ -370,11 +370,11 @@ class AsyncSnapAPI:
         url: str,
         type: str = "text",
         pages: int = 1,
-        wait_ms: Optional[int] = None,
-        proxy: Optional[str] = None,
-        premium_proxy: Optional[bool] = None,
+        wait_ms: int | None = None,
+        proxy: str | None = None,
+        premium_proxy: bool | None = None,
         block_resources: bool = False,
-        locale: Optional[str] = None,
+        locale: str | None = None,
     ) -> ScrapeResult:
         """Scrape text, HTML, or links asynchronously.
 
@@ -399,15 +399,15 @@ class AsyncSnapAPI:
         self,
         url: str,
         type: str = "markdown",
-        selector: Optional[str] = None,
-        wait_for: Optional[str] = None,
-        timeout: Optional[int] = None,
+        selector: str | None = None,
+        wait_for: str | None = None,
+        timeout: int | None = None,
         dark_mode: bool = False,
         block_ads: bool = False,
         block_cookie_banners: bool = False,
-        include_images: Optional[bool] = None,
-        max_length: Optional[int] = None,
-        clean_output: Optional[bool] = None,
+        include_images: bool | None = None,
+        max_length: int | None = None,
+        clean_output: bool | None = None,
     ) -> ExtractResult:
         """Extract content asynchronously.
 
@@ -431,7 +431,7 @@ class AsyncSnapAPI:
 
     # -- Extract convenience methods ---------------------------------------------
 
-    async def extract_markdown(self, url: str, **kwargs: Any) -> "ExtractResult":
+    async def extract_markdown(self, url: str, **kwargs: Any) -> ExtractResult:
         """Extract page content as Markdown asynchronously.
 
         Convenience wrapper for ``extract(url, type='markdown', ...)``.
@@ -443,7 +443,7 @@ class AsyncSnapAPI:
         kwargs.pop("type", None)
         return await self.extract(url=url, type="markdown", **kwargs)
 
-    async def extract_article(self, url: str, **kwargs: Any) -> "ExtractResult":
+    async def extract_article(self, url: str, **kwargs: Any) -> ExtractResult:
         """Extract main article body asynchronously.
 
         Convenience wrapper for ``extract(url, type='article', ...)``.
@@ -451,7 +451,7 @@ class AsyncSnapAPI:
         kwargs.pop("type", None)
         return await self.extract(url=url, type="article", **kwargs)
 
-    async def extract_text(self, url: str, **kwargs: Any) -> "ExtractResult":
+    async def extract_text(self, url: str, **kwargs: Any) -> ExtractResult:
         """Extract plain text asynchronously.
 
         Convenience wrapper for ``extract(url, type='text', ...)``.
@@ -459,7 +459,7 @@ class AsyncSnapAPI:
         kwargs.pop("type", None)
         return await self.extract(url=url, type="text", **kwargs)
 
-    async def extract_links(self, url: str, **kwargs: Any) -> "ExtractResult":
+    async def extract_links(self, url: str, **kwargs: Any) -> ExtractResult:
         """Extract all hyperlinks asynchronously.
 
         Convenience wrapper for ``extract(url, type='links', ...)``.
@@ -467,7 +467,7 @@ class AsyncSnapAPI:
         kwargs.pop("type", None)
         return await self.extract(url=url, type="links", **kwargs)
 
-    async def extract_images(self, url: str, **kwargs: Any) -> "ExtractResult":
+    async def extract_images(self, url: str, **kwargs: Any) -> ExtractResult:
         """Extract all image URLs asynchronously.
 
         Convenience wrapper for ``extract(url, type='images', ...)``.
@@ -475,7 +475,7 @@ class AsyncSnapAPI:
         kwargs.pop("type", None)
         return await self.extract(url=url, type="images", **kwargs)
 
-    async def extract_metadata(self, url: str, **kwargs: Any) -> "ExtractResult":
+    async def extract_metadata(self, url: str, **kwargs: Any) -> ExtractResult:
         """Extract page metadata asynchronously.
 
         Convenience wrapper for ``extract(url, type='metadata', ...)``.
@@ -494,11 +494,11 @@ class AsyncSnapAPI:
         duration: int = 5,
         fps: int = 25,
         scrolling: bool = False,
-        scroll_speed: Optional[int] = None,
-        scroll_delay: Optional[int] = None,
-        scroll_duration: Optional[int] = None,
-        scroll_by: Optional[int] = None,
-        scroll_easing: Optional[str] = None,
+        scroll_speed: int | None = None,
+        scroll_delay: int | None = None,
+        scroll_duration: int | None = None,
+        scroll_by: int | None = None,
+        scroll_easing: str | None = None,
         scroll_back: bool = True,
         scroll_complete: bool = True,
         dark_mode: bool = False,
@@ -554,18 +554,18 @@ class AsyncSnapAPI:
         self,
         url: str,
         prompt: str,
-        provider: Optional[str] = None,
-        api_key: Optional[str] = None,
-        model: Optional[str] = None,
-        json_schema: Optional[Dict[str, Any]] = None,
-        include_screenshot: Optional[bool] = None,
-        include_metadata: Optional[bool] = None,
-        max_content_length: Optional[int] = None,
-        timeout: Optional[int] = None,
+        provider: str | None = None,
+        api_key: str | None = None,
+        model: str | None = None,
+        json_schema: dict[str, Any] | None = None,
+        include_screenshot: bool | None = None,
+        include_metadata: bool | None = None,
+        max_content_length: int | None = None,
+        timeout: int | None = None,
         block_ads: bool = False,
         block_cookie_banners: bool = False,
-        wait_for: Optional[str] = None,
-    ) -> "AnalyzeResult":
+        wait_for: str | None = None,
+    ) -> AnalyzeResult:
         """Analyze a web page with an LLM asynchronously."""
         opts = AnalyzeOptions(
             url=url,
@@ -596,7 +596,7 @@ class AsyncSnapAPI:
         """Alias for :meth:`get_usage`."""
         return await self.get_usage()
 
-    async def ping(self) -> Dict[str, Any]:
+    async def ping(self) -> dict[str, Any]:
         """Check API availability asynchronously."""
         raw = await self._request("GET", "/v1/ping")
         return json.loads(raw)  # type: ignore[no-any-return]
@@ -604,7 +604,7 @@ class AsyncSnapAPI:
     # -- Storage -----------------------------------------------------------------
 
     async def storage_list_files(self, limit: int = 50, offset: int = 0) -> StorageListResult:
-        """List stored files asynchronously."""
+        """list stored files asynchronously."""
         raw = await self._request("GET", f"/v1/storage/files?limit={limit}&offset={offset}")
         return StorageListResult.from_dict(json.loads(raw))
 
@@ -623,7 +623,7 @@ class AsyncSnapAPI:
         raw = await self._request("GET", "/v1/storage/usage")
         return StorageUsage.from_dict(json.loads(raw))
 
-    async def storage_configure_s3(self, config: S3Config) -> Dict[str, Any]:
+    async def storage_configure_s3(self, config: S3Config) -> dict[str, Any]:
         """Configure S3 asynchronously."""
         raw = await self._request("POST", "/v1/storage/s3", config.to_dict())
         return json.loads(raw)  # type: ignore[no-any-return]
@@ -640,8 +640,8 @@ class AsyncSnapAPI:
         raw = await self._request("POST", "/v1/scheduled", options.to_dict())
         return ScheduledScreenshot.from_dict(json.loads(raw))
 
-    async def scheduled_list(self) -> List[ScheduledScreenshot]:
-        """List scheduled jobs asynchronously."""
+    async def scheduled_list(self) -> list[ScheduledScreenshot]:
+        """list scheduled jobs asynchronously."""
         raw = await self._request("GET", "/v1/scheduled")
         data = json.loads(raw)
         items = data if isinstance(data, list) else data.get("jobs", [])
@@ -659,8 +659,8 @@ class AsyncSnapAPI:
         raw = await self._request("POST", "/v1/webhooks", options.to_dict())
         return Webhook.from_dict(json.loads(raw))
 
-    async def webhooks_list(self) -> List[Webhook]:
-        """List webhooks asynchronously."""
+    async def webhooks_list(self) -> list[Webhook]:
+        """list webhooks asynchronously."""
         raw = await self._request("GET", "/v1/webhooks")
         data = json.loads(raw)
         items = data if isinstance(data, list) else data.get("webhooks", [])
@@ -673,8 +673,8 @@ class AsyncSnapAPI:
 
     # -- API Keys ----------------------------------------------------------------
 
-    async def keys_list(self) -> List[ApiKey]:
-        """List API keys asynchronously."""
+    async def keys_list(self) -> list[ApiKey]:
+        """list API keys asynchronously."""
         raw = await self._request("GET", "/v1/keys")
         data = json.loads(raw)
         items = data if isinstance(data, list) else data.get("keys", [])
@@ -696,7 +696,7 @@ class AsyncSnapAPI:
         self,
         method: str,
         path: str,
-        data: Optional[Dict[str, Any]] = None,
+        data: dict[str, Any] | None = None,
     ) -> bytes:
         """Execute an async HTTP request with retry logic."""
         url = f"{self.base_url}{path}"

@@ -8,7 +8,7 @@ SnapAPI-specific errors in a single ``except`` clause.
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any, dict
 
 
 class SnapAPIError(Exception):
@@ -28,7 +28,7 @@ class SnapAPIError(Exception):
         message: str,
         code: str = "UNKNOWN_ERROR",
         status_code: int = 500,
-        details: Optional[Any] = None,
+        details: Any | None = None,
     ) -> None:
         super().__init__(message)
         self.message = message
@@ -60,7 +60,7 @@ class RateLimitError(SnapAPIError):
         self,
         message: str = "Rate limit exceeded",
         retry_after: float = 1.0,
-        details: Optional[Any] = None,
+        details: Any | None = None,
     ) -> None:
         super().__init__(message, code="RATE_LIMITED", status_code=429, details=details)
         self.retry_after = retry_after
@@ -72,7 +72,7 @@ class AuthenticationError(SnapAPIError):
     def __init__(
         self,
         message: str = "Authentication failed",
-        details: Optional[Any] = None,
+        details: Any | None = None,
     ) -> None:
         super().__init__(message, code="UNAUTHORIZED", status_code=401, details=details)
 
@@ -87,11 +87,11 @@ class ValidationError(SnapAPIError):
     def __init__(
         self,
         message: str = "Validation error",
-        fields: Optional[Dict[str, str]] = None,
-        details: Optional[Any] = None,
+        fields: dict[str, str] | None = None,
+        details: Any | None = None,
     ) -> None:
         super().__init__(message, code="VALIDATION_ERROR", status_code=422, details=details)
-        self.fields: Dict[str, str] = fields or {}
+        self.fields: dict[str, str] = fields or {}
 
 
 class QuotaExceededError(SnapAPIError):
@@ -100,7 +100,7 @@ class QuotaExceededError(SnapAPIError):
     def __init__(
         self,
         message: str = "API quota exceeded",
-        details: Optional[Any] = None,
+        details: Any | None = None,
     ) -> None:
         super().__init__(message, code="QUOTA_EXCEEDED", status_code=402, details=details)
 

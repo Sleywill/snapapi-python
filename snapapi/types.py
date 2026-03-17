@@ -2,8 +2,8 @@
 Type definitions for SnapAPI Python SDK
 """
 
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Literal, Optional
+from dataclasses import dataclass
+from typing import Any, Literal, dict, list
 
 # Device preset type
 DevicePreset = Literal[
@@ -22,14 +22,14 @@ class Cookie:
     """Cookie configuration for authenticated screenshots."""
     name: str
     value: str
-    domain: Optional[str] = None
-    path: Optional[str] = None
-    expires: Optional[int] = None
-    http_only: Optional[bool] = None
-    secure: Optional[bool] = None
-    same_site: Optional[Literal["Strict", "Lax", "None"]] = None
+    domain: str | None = None
+    path: str | None = None
+    expires: int | None = None
+    http_only: bool | None = None
+    secure: bool | None = None
+    same_site: Literal["Strict", "Lax", "None"] | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for API request."""
         result = {"name": self.name, "value": self.value}
         if self.domain:
@@ -53,7 +53,7 @@ class HttpAuth:
     username: str
     password: str
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {"username": self.username, "password": self.password}
 
 
@@ -61,11 +61,11 @@ class HttpAuth:
 class ProxyConfig:
     """Proxy configuration."""
     server: str
-    username: Optional[str] = None
-    password: Optional[str] = None
-    bypass: Optional[List[str]] = None
+    username: str | None = None
+    password: str | None = None
+    bypass: list[str] | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         result = {"server": self.server}
         if self.username:
             result["username"] = self.username
@@ -81,9 +81,9 @@ class Geolocation:
     """Geolocation coordinates for emulation."""
     latitude: float
     longitude: float
-    accuracy: Optional[float] = None
+    accuracy: float | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         result = {"latitude": self.latitude, "longitude": self.longitude}
         if self.accuracy is not None:
             result["accuracy"] = self.accuracy
@@ -93,23 +93,23 @@ class Geolocation:
 @dataclass
 class PdfOptions:
     """PDF generation options."""
-    page_size: Optional[Literal["a4", "a3", "a5", "letter", "legal", "tabloid", "custom"]] = None
-    width: Optional[str] = None
-    height: Optional[str] = None
-    landscape: Optional[bool] = None
-    margin_top: Optional[str] = None
-    margin_right: Optional[str] = None
-    margin_bottom: Optional[str] = None
-    margin_left: Optional[str] = None
-    print_background: Optional[bool] = None
-    header_template: Optional[str] = None
-    footer_template: Optional[str] = None
-    display_header_footer: Optional[bool] = None
-    scale: Optional[float] = None
-    page_ranges: Optional[str] = None
-    prefer_css_page_size: Optional[bool] = None
+    page_size: Literal["a4", "a3", "a5", "letter", "legal", "tabloid", "custom"] | None = None
+    width: str | None = None
+    height: str | None = None
+    landscape: bool | None = None
+    margin_top: str | None = None
+    margin_right: str | None = None
+    margin_bottom: str | None = None
+    margin_left: str | None = None
+    print_background: bool | None = None
+    header_template: str | None = None
+    footer_template: str | None = None
+    display_header_footer: bool | None = None
+    scale: float | None = None
+    page_ranges: str | None = None
+    prefer_css_page_size: bool | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         result = {}
         if self.page_size:
             result["pageSize"] = self.page_size
@@ -148,11 +148,11 @@ class PdfOptions:
 class ThumbnailOptions:
     """Thumbnail generation options."""
     enabled: bool = True
-    width: Optional[int] = None
-    height: Optional[int] = None
-    fit: Optional[Literal["cover", "contain", "fill"]] = None
+    width: int | None = None
+    height: int | None = None
+    fit: Literal["cover", "contain", "fill"] | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         result = {"enabled": self.enabled}
         if self.width:
             result["width"] = self.width
@@ -166,12 +166,12 @@ class ThumbnailOptions:
 @dataclass
 class ExtractMetadata:
     """Options for additional metadata extraction."""
-    fonts: Optional[bool] = None
-    colors: Optional[bool] = None
-    links: Optional[bool] = None
-    http_status_code: Optional[bool] = None
+    fonts: bool | None = None
+    colors: bool | None = None
+    links: bool | None = None
+    http_status_code: bool | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         result = {}
         if self.fonts is not None:
             result["fonts"] = self.fonts
@@ -187,12 +187,12 @@ class ExtractMetadata:
 @dataclass
 class ScreenshotOptions:
     """Options for screenshot capture."""
-    url: Optional[str] = None
-    html: Optional[str] = None
-    markdown: Optional[str] = None
+    url: str | None = None
+    html: str | None = None
+    markdown: str | None = None
     format: Literal["png", "jpeg", "webp", "avif", "pdf"] = "png"
-    quality: Optional[int] = None
-    device: Optional[DevicePreset] = None
+    quality: int | None = None
+    device: DevicePreset | None = None
     width: int = 1280
     height: int = 800
     device_scale_factor: float = 1.0
@@ -200,60 +200,60 @@ class ScreenshotOptions:
     has_touch: bool = False
     is_landscape: bool = False
     full_page: bool = False
-    full_page_scroll_delay: Optional[int] = None
-    full_page_max_height: Optional[int] = None
-    selector: Optional[str] = None
-    selector_scroll_into_view: Optional[bool] = None
-    clip_x: Optional[int] = None
-    clip_y: Optional[int] = None
-    clip_width: Optional[int] = None
-    clip_height: Optional[int] = None
+    full_page_scroll_delay: int | None = None
+    full_page_max_height: int | None = None
+    selector: str | None = None
+    selector_scroll_into_view: bool | None = None
+    clip_x: int | None = None
+    clip_y: int | None = None
+    clip_width: int | None = None
+    clip_height: int | None = None
     delay: int = 0
-    timeout: Optional[int] = None
-    wait_until: Optional[Literal["load", "domcontentloaded", "networkidle"]] = None
-    wait_for_selector: Optional[str] = None
-    wait_for_selector_timeout: Optional[int] = None
+    timeout: int | None = None
+    wait_until: Literal["load", "domcontentloaded", "networkidle"] | None = None
+    wait_for_selector: str | None = None
+    wait_for_selector_timeout: int | None = None
     dark_mode: bool = False
     reduced_motion: bool = False
-    css: Optional[str] = None
-    javascript: Optional[str] = None
-    hide_selectors: Optional[List[str]] = None
-    click_selector: Optional[str] = None
-    click_delay: Optional[int] = None
+    css: str | None = None
+    javascript: str | None = None
+    hide_selectors: list[str] | None = None
+    click_selector: str | None = None
+    click_delay: int | None = None
     block_ads: bool = False
     block_trackers: bool = False
     block_cookie_banners: bool = False
     block_chat_widgets: bool = False
-    block_resources: Optional[List[str]] = None
-    user_agent: Optional[str] = None
-    extra_headers: Optional[Dict[str, str]] = None
-    cookies: Optional[List[Cookie]] = None
-    http_auth: Optional[HttpAuth] = None
-    proxy: Optional[ProxyConfig] = None
-    geolocation: Optional[Geolocation] = None
-    timezone: Optional[str] = None
-    locale: Optional[str] = None
-    pdf_options: Optional[PdfOptions] = None
-    thumbnail: Optional[ThumbnailOptions] = None
+    block_resources: list[str] | None = None
+    user_agent: str | None = None
+    extra_headers: dict[str, str] | None = None
+    cookies: list[Cookie] | None = None
+    http_auth: HttpAuth | None = None
+    proxy: ProxyConfig | None = None
+    geolocation: Geolocation | None = None
+    timezone: str | None = None
+    locale: str | None = None
+    pdf_options: PdfOptions | None = None
+    thumbnail: ThumbnailOptions | None = None
     fail_on_http_error: bool = False
     cache: bool = False
-    cache_ttl: Optional[int] = None
+    cache_ttl: int | None = None
     response_type: Literal["binary", "base64", "json"] = "binary"
     include_metadata: bool = False
-    extract_metadata: Optional[ExtractMetadata] = None
-    fail_if_content_missing: Optional[List[str]] = None
-    fail_if_content_contains: Optional[List[str]] = None
+    extract_metadata: ExtractMetadata | None = None
+    fail_if_content_missing: list[str] | None = None
+    fail_if_content_contains: list[str] | None = None
     # v2 additions
-    storage: Optional[Dict[str, Any]] = None  # {destination: 'snapapi'|'user_s3', format?}
-    webhook_url: Optional[str] = None         # async delivery
-    job_id: Optional[str] = None              # poll async result
-    premium_proxy: Optional[bool] = None      # SnapAPI rotating proxy
+    storage: dict[str, Any] | None = None  # {destination: 'snapapi'|'user_s3', format?}
+    webhook_url: str | None = None         # async delivery
+    job_id: str | None = None              # poll async result
+    premium_proxy: bool | None = None      # SnapAPI rotating proxy
     # v3 additions
-    page_size: Optional[str] = None
-    landscape: Optional[bool] = None
-    margins: Optional[Dict[str, str]] = None
+    page_size: str | None = None
+    landscape: bool | None = None
+    margins: dict[str, str] | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for API request."""
         result = {}
 
@@ -391,19 +391,19 @@ class ScreenshotOptions:
 @dataclass
 class ScreenshotMetadata:
     """Page metadata from screenshot."""
-    title: Optional[str] = None
-    description: Optional[str] = None
-    favicon: Optional[str] = None
-    og_title: Optional[str] = None
-    og_description: Optional[str] = None
-    og_image: Optional[str] = None
-    http_status_code: Optional[int] = None
-    fonts: Optional[List[str]] = None
-    colors: Optional[List[str]] = None
-    links: Optional[List[str]] = None
+    title: str | None = None
+    description: str | None = None
+    favicon: str | None = None
+    og_title: str | None = None
+    og_description: str | None = None
+    og_image: str | None = None
+    http_status_code: int | None = None
+    fonts: list[str] | None = None
+    colors: list[str] | None = None
+    links: list[str] | None = None
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "ScreenshotMetadata":
+    def from_dict(cls, data: dict[str, Any]) -> "ScreenshotMetadata":
         return cls(
             title=data.get("title"),
             description=data.get("description"),
@@ -428,12 +428,12 @@ class ScreenshotResult:
     file_size: int
     took: int
     cached: bool
-    data: Optional[str] = None
-    metadata: Optional[ScreenshotMetadata] = None
-    thumbnail: Optional[str] = None
+    data: str | None = None
+    metadata: ScreenshotMetadata | None = None
+    thumbnail: str | None = None
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "ScreenshotResult":
+    def from_dict(cls, data: dict[str, Any]) -> "ScreenshotResult":
         """Create from API response dictionary."""
         metadata = None
         if data.get("metadata"):
@@ -461,37 +461,37 @@ class VideoOptions:
     """Options for video capture."""
     url: str
     format: Literal["mp4", "webm", "gif"] = "mp4"
-    quality: Optional[int] = None
+    quality: int | None = None
     width: int = 1280
     height: int = 720
-    device: Optional[DevicePreset] = None
+    device: DevicePreset | None = None
     duration: int = 5
     fps: int = 24
     delay: int = 0
     timeout: int = 60000
-    wait_until: Optional[Literal["load", "domcontentloaded", "networkidle"]] = None
-    wait_for_selector: Optional[str] = None
+    wait_until: Literal["load", "domcontentloaded", "networkidle"] | None = None
+    wait_for_selector: str | None = None
     dark_mode: bool = False
     block_ads: bool = False
     block_cookie_banners: bool = False
-    css: Optional[str] = None
-    javascript: Optional[str] = None
-    hide_selectors: Optional[List[str]] = None
-    user_agent: Optional[str] = None
-    cookies: Optional[List[Cookie]] = None
+    css: str | None = None
+    javascript: str | None = None
+    hide_selectors: list[str] | None = None
+    user_agent: str | None = None
+    cookies: list[Cookie] | None = None
     response_type: Literal["binary", "base64", "json"] = "binary"
     scrolling: bool = False
-    scroll_speed: Optional[int] = None
-    scroll_delay: Optional[int] = None
-    scroll_duration: Optional[int] = None
-    scroll_by: Optional[int] = None
-    scroll_easing: Optional[ScrollEasing] = None
+    scroll_speed: int | None = None
+    scroll_delay: int | None = None
+    scroll_duration: int | None = None
+    scroll_by: int | None = None
+    scroll_easing: ScrollEasing | None = None
     scroll_back: bool = True
     scroll_complete: bool = True
     # Legacy compat alias (v2 used `scroll`, v3 uses `scrolling`)
     scroll: bool = False
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for API request."""
         result = {
             "url": self.url,
@@ -558,10 +558,10 @@ class VideoResult:
     file_size: int
     duration: int
     took: int
-    data: Optional[str] = None
+    data: str | None = None
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "VideoResult":
+    def from_dict(cls, data: dict[str, Any]) -> "VideoResult":
         """Create from API response dictionary."""
         return cls(
             success=data.get("success", False),
@@ -578,18 +578,18 @@ class VideoResult:
 @dataclass
 class BatchOptions:
     """Options for batch screenshot capture."""
-    urls: List[str]
+    urls: list[str]
     format: Literal["png", "jpeg", "webp", "avif", "pdf"] = "png"
-    quality: Optional[int] = None
+    quality: int | None = None
     width: int = 1280
     height: int = 800
     full_page: bool = False
-    webhook_url: Optional[str] = None
+    webhook_url: str | None = None
     dark_mode: bool = False
     block_ads: bool = False
     block_cookie_banners: bool = False
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for API request."""
         result = {
             "urls": self.urls,
@@ -619,12 +619,12 @@ class BatchResultItem:
     """Individual result in a batch job."""
     url: str
     status: Literal["pending", "completed", "failed"]
-    data: Optional[str] = None
-    error: Optional[str] = None
-    duration: Optional[int] = None
+    data: str | None = None
+    error: str | None = None
+    duration: int | None = None
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "BatchResultItem":
+    def from_dict(cls, data: dict[str, Any]) -> "BatchResultItem":
         return cls(
             url=data.get("url", ""),
             status=data.get("status", "pending"),
@@ -641,14 +641,14 @@ class BatchResult:
     job_id: str
     status: Literal["pending", "processing", "completed", "failed"]
     total: int
-    completed: Optional[int] = None
-    failed: Optional[int] = None
-    results: Optional[List[BatchResultItem]] = None
-    created_at: Optional[str] = None
-    completed_at: Optional[str] = None
+    completed: int | None = None
+    failed: int | None = None
+    results: list[BatchResultItem] | None = None
+    created_at: str | None = None
+    completed_at: str | None = None
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "BatchResult":
+    def from_dict(cls, data: dict[str, Any]) -> "BatchResult":
         """Create from API response dictionary."""
         results = None
         if data.get("results"):
@@ -678,7 +678,7 @@ class DeviceInfo:
     is_mobile: bool
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "DeviceInfo":
+    def from_dict(cls, data: dict[str, Any]) -> "DeviceInfo":
         return cls(
             id=data.get("id", ""),
             name=data.get("name", ""),
@@ -693,11 +693,11 @@ class DeviceInfo:
 class DevicesResult:
     """Result of get_devices call."""
     success: bool
-    devices: Dict[str, List[DeviceInfo]]
+    devices: dict[str, list[DeviceInfo]]
     total: int
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "DevicesResult":
+    def from_dict(cls, data: dict[str, Any]) -> "DevicesResult":
         devices = {}
         for category, device_list in data.get("devices", {}).items():
             devices[category] = [DeviceInfo.from_dict(d) for d in device_list]
@@ -713,10 +713,10 @@ class CapabilitiesResult:
     """Result of get_capabilities call."""
     success: bool
     version: str
-    capabilities: Dict[str, Any]
+    capabilities: dict[str, Any]
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "CapabilitiesResult":
+    def from_dict(cls, data: dict[str, Any]) -> "CapabilitiesResult":
         return cls(
             success=data.get("success", False),
             version=data.get("version", ""),
@@ -733,7 +733,7 @@ class UsageResult:
     reset_at: str
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "UsageResult":
+    def from_dict(cls, data: dict[str, Any]) -> "UsageResult":
         return cls(
             used=data.get("used", 0),
             limit=data.get("limit", 0),
@@ -758,16 +758,16 @@ class ScrapeOptions:
     url: str
     pages: int = 1
     type: ScrapeType = "text"
-    wait_ms: Optional[int] = None
-    proxy: Optional[str] = None
-    premium_proxy: Optional[bool] = None
+    wait_ms: int | None = None
+    proxy: str | None = None
+    premium_proxy: bool | None = None
     block_resources: bool = False
-    page_step: Optional[int] = None
-    locale: Optional[str] = None
+    page_step: int | None = None
+    locale: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for API request."""
-        result: Dict[str, Any] = {
+        result: dict[str, Any] = {
             "url": self.url,
             "pages": self.pages,
             "type": self.type,
@@ -799,10 +799,10 @@ class ScrapePageResult:
 class ScrapeResult:
     """Result of a multi-page scrape."""
     success: bool
-    results: List["ScrapePageResult"]
+    results: list["ScrapePageResult"]
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "ScrapeResult":
+    def from_dict(cls, data: dict[str, Any]) -> "ScrapeResult":
         """Create from API response dictionary."""
         results = [
             ScrapePageResult(page=r["page"], url=r["url"], data=r["data"])
@@ -816,23 +816,23 @@ class ExtractOptions:
     """Options for content extraction."""
     url: str
     type: ExtractType = "markdown"
-    selector: Optional[str] = None
-    wait_for: Optional[str] = None
-    timeout: Optional[int] = None
+    selector: str | None = None
+    wait_for: str | None = None
+    timeout: int | None = None
     dark_mode: bool = False
     block_ads: bool = False
     block_cookie_banners: bool = False
-    include_images: Optional[bool] = None
-    max_length: Optional[int] = None
-    clean_output: Optional[bool] = None
-    proxy: Optional[str] = None
+    include_images: bool | None = None
+    max_length: int | None = None
+    clean_output: bool | None = None
+    proxy: str | None = None
     block_resources: bool = False
-    locale: Optional[str] = None
-    user_agent: Optional[str] = None
+    locale: str | None = None
+    user_agent: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for API request."""
-        result: Dict[str, Any] = {
+        result: dict[str, Any] = {
             "url": self.url,
             "type": self.type,
         }
@@ -870,22 +870,24 @@ class ExtractResult:
     """Result of a content extraction."""
     success: bool
     type: str
-    content: Optional[Any] = None
-    url: Optional[str] = None
-    title: Optional[str] = None
-    took: Optional[int] = None
+    content: Any | None = None
+    url: str | None = None
+    title: str | None = None
+    took: int | None = None
     cached: bool = False
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "ExtractResult":
+    def from_dict(cls, data: dict[str, Any]) -> "ExtractResult":
         """Create from API response dictionary."""
         return cls(
             success=data.get("success", False),
             type=data.get("type", ""),
-            content=data.get("content"),
+            # API returns extracted content in "data" field; fall back to "content" for compat
+            content=data.get("data", data.get("content")),
             url=data.get("url"),
             title=data.get("title"),
-            took=data.get("took"),
+            # API returns timing as "took" (preferred) or "responseTime" (legacy alias)
+            took=data.get("took", data.get("responseTime")),
             cached=data.get("cached", False),
         )
 
@@ -899,21 +901,21 @@ class AnalyzeOptions:
     """Options for AI-powered page analysis."""
     url: str
     prompt: str
-    provider: Optional[AnalyzeProvider] = None
-    api_key: Optional[str] = None
-    model: Optional[str] = None
-    json_schema: Optional[Dict[str, Any]] = None
-    timeout: Optional[int] = None
-    wait_for: Optional[str] = None
+    provider: AnalyzeProvider | None = None
+    api_key: str | None = None
+    model: str | None = None
+    json_schema: dict[str, Any] | None = None
+    timeout: int | None = None
+    wait_for: str | None = None
     block_ads: bool = False
     block_cookie_banners: bool = False
-    include_screenshot: Optional[bool] = None
-    include_metadata: Optional[bool] = None
-    max_content_length: Optional[int] = None
+    include_screenshot: bool | None = None
+    include_metadata: bool | None = None
+    max_content_length: int | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for API request."""
-        result: Dict[str, Any] = {
+        result: dict[str, Any] = {
             "url": self.url,
             "prompt": self.prompt,
         }
@@ -946,25 +948,27 @@ class AnalyzeOptions:
 class AnalyzeResult:
     """Result of an AI-powered page analysis."""
     success: bool
-    result: Optional[Any] = None
-    url: Optional[str] = None
-    model: Optional[str] = None
-    provider: Optional[str] = None
-    took: Optional[int] = None
-    tokens_used: Optional[int] = None
-    screenshot: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = None
+    result: Any | None = None
+    url: str | None = None
+    model: str | None = None
+    provider: str | None = None
+    took: int | None = None
+    tokens_used: int | None = None
+    screenshot: str | None = None
+    metadata: dict[str, Any] | None = None
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "AnalyzeResult":
+    def from_dict(cls, data: dict[str, Any]) -> "AnalyzeResult":
         """Create from API response dictionary."""
         return cls(
             success=data.get("success", False),
-            result=data.get("result"),
+            # API returns LLM output in "analysis" field; fall back to "result" for compat
+            result=data.get("analysis", data.get("result")),
             url=data.get("url"),
             model=data.get("model"),
             provider=data.get("provider"),
-            took=data.get("took"),
+            # API returns timing as "took" (preferred) or "responseTime" (legacy alias)
+            took=data.get("took", data.get("responseTime")),
             tokens_used=data.get("tokensUsed"),
             screenshot=data.get("screenshot"),
             metadata=data.get("metadata"),
@@ -980,14 +984,14 @@ class StorageFile:
     """A file stored in SnapAPI cloud or user S3."""
     id: str
     url: str
-    filename: Optional[str] = None
-    size: Optional[int] = None
-    format: Optional[str] = None
-    created_at: Optional[str] = None
-    extra: Optional[Dict[str, Any]] = None
+    filename: str | None = None
+    size: int | None = None
+    format: str | None = None
+    created_at: str | None = None
+    extra: dict[str, Any] | None = None
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "StorageFile":
+    def from_dict(cls, data: dict[str, Any]) -> "StorageFile":
         known = {"id", "url", "filename", "size", "format", "createdAt"}
         return cls(
             id=data["id"],
@@ -1003,13 +1007,13 @@ class StorageFile:
 @dataclass
 class StorageListResult:
     """Result of listing stored files."""
-    files: List[StorageFile]
-    total: Optional[int] = None
-    limit: Optional[int] = None
-    offset: Optional[int] = None
+    files: list[StorageFile]
+    total: int | None = None
+    limit: int | None = None
+    offset: int | None = None
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "StorageListResult":
+    def from_dict(cls, data: dict[str, Any]) -> "StorageListResult":
         files = [StorageFile.from_dict(f) for f in data.get("files", [])]
         return cls(
             files=files,
@@ -1029,7 +1033,7 @@ class StorageUsage:
     limit_formatted: str
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "StorageUsage":
+    def from_dict(cls, data: dict[str, Any]) -> "StorageUsage":
         return cls(
             used=data.get("used", 0),
             limit=data.get("limit", 0),
@@ -1046,10 +1050,10 @@ class S3Config:
     s3_region: str
     s3_access_key_id: str
     s3_secret_access_key: str
-    s3_endpoint: Optional[str] = None
+    s3_endpoint: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
-        result: Dict[str, Any] = {
+    def to_dict(self) -> dict[str, Any]:
+        result: dict[str, Any] = {
             "s3_bucket": self.s3_bucket,
             "s3_region": self.s3_region,
             "s3_access_key_id": self.s3_access_key_id,
@@ -1064,10 +1068,10 @@ class S3Config:
 class S3TestResult:
     """Result of testing the S3 connection."""
     success: bool
-    message: Optional[str] = None
+    message: str | None = None
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "S3TestResult":
+    def from_dict(cls, data: dict[str, Any]) -> "S3TestResult":
         return cls(success=data.get("success", False), message=data.get("message"))
 
 
@@ -1077,7 +1081,7 @@ class DeleteResult:
     success: bool
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "DeleteResult":
+    def from_dict(cls, data: dict[str, Any]) -> "DeleteResult":
         return cls(success=data.get("success", False))
 
 
@@ -1090,14 +1094,14 @@ class CreateScheduledOptions:
     """Options for creating a scheduled screenshot job."""
     url: str
     cron_expression: str
-    format: Optional[str] = None
-    width: Optional[int] = None
-    height: Optional[int] = None
-    full_page: Optional[bool] = None
-    webhook_url: Optional[str] = None
+    format: str | None = None
+    width: int | None = None
+    height: int | None = None
+    full_page: bool | None = None
+    webhook_url: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
-        result: Dict[str, Any] = {
+    def to_dict(self) -> dict[str, Any]:
+        result: dict[str, Any] = {
             "url": self.url,
             "cronExpression": self.cron_expression,
         }
@@ -1120,16 +1124,16 @@ class ScheduledScreenshot:
     id: str
     url: str
     cron_expression: str
-    next_run: Optional[str] = None
-    format: Optional[str] = None
-    width: Optional[int] = None
-    height: Optional[int] = None
-    full_page: Optional[bool] = None
-    webhook_url: Optional[str] = None
-    created_at: Optional[str] = None
+    next_run: str | None = None
+    format: str | None = None
+    width: int | None = None
+    height: int | None = None
+    full_page: bool | None = None
+    webhook_url: str | None = None
+    created_at: str | None = None
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "ScheduledScreenshot":
+    def from_dict(cls, data: dict[str, Any]) -> "ScheduledScreenshot":
         return cls(
             id=data["id"],
             url=data["url"],
@@ -1152,11 +1156,11 @@ class ScheduledScreenshot:
 class CreateWebhookOptions:
     """Options for registering a webhook."""
     url: str
-    events: List[str]
-    secret: Optional[str] = None
+    events: list[str]
+    secret: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
-        result: Dict[str, Any] = {"url": self.url, "events": self.events}
+    def to_dict(self) -> dict[str, Any]:
+        result: dict[str, Any] = {"url": self.url, "events": self.events}
         if self.secret:
             result["secret"] = self.secret
         return result
@@ -1167,12 +1171,12 @@ class Webhook:
     """A registered webhook endpoint."""
     id: str
     url: str
-    events: List[str]
-    secret: Optional[str] = None
-    created_at: Optional[str] = None
+    events: list[str]
+    secret: str | None = None
+    created_at: str | None = None
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "Webhook":
+    def from_dict(cls, data: dict[str, Any]) -> "Webhook":
         return cls(
             id=data["id"],
             url=data["url"],
@@ -1192,11 +1196,11 @@ class ApiKey:
     id: str
     name: str
     key: str
-    created_at: Optional[str] = None
-    last_used: Optional[str] = None
+    created_at: str | None = None
+    last_used: str | None = None
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "ApiKey":
+    def from_dict(cls, data: dict[str, Any]) -> "ApiKey":
         return cls(
             id=data["id"],
             name=data["name"],
@@ -1214,5 +1218,5 @@ class CreateApiKeyResult:
     key: str
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "CreateApiKeyResult":
+    def from_dict(cls, data: dict[str, Any]) -> "CreateApiKeyResult":
         return cls(id=data["id"], name=data["name"], key=data["key"])
