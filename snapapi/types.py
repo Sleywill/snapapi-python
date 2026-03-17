@@ -33,7 +33,7 @@ class Cookie:
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for API request."""
-        result = {"name": self.name, "value": self.value}
+        result: dict[str, Any] = {"name": self.name, "value": self.value}
         if self.domain:
             result["domain"] = self.domain
         if self.path:
@@ -68,7 +68,7 @@ class ProxyConfig:
     bypass: list[str] | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        result = {"server": self.server}
+        result: dict[str, Any] = {"server": self.server}
         if self.username:
             result["username"] = self.username
         if self.password:
@@ -86,7 +86,7 @@ class Geolocation:
     accuracy: float | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        result = {"latitude": self.latitude, "longitude": self.longitude}
+        result: dict[str, Any] = {"latitude": self.latitude, "longitude": self.longitude}
         if self.accuracy is not None:
             result["accuracy"] = self.accuracy
         return result
@@ -112,7 +112,7 @@ class PdfOptions:
     prefer_css_page_size: bool | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        result = {}
+        result: dict[str, Any] = {}
         if self.page_size:
             result["pageSize"] = self.page_size
         if self.width:
@@ -155,7 +155,7 @@ class ThumbnailOptions:
     fit: Literal["cover", "contain", "fill"] | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        result = {"enabled": self.enabled}
+        result: dict[str, Any] = {"enabled": self.enabled}
         if self.width:
             result["width"] = self.width
         if self.height:
@@ -174,7 +174,7 @@ class ExtractMetadata:
     http_status_code: bool | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        result = {}
+        result: dict[str, Any] = {}
         if self.fonts is not None:
             result["fonts"] = self.fonts
         if self.colors is not None:
@@ -257,7 +257,7 @@ class ScreenshotOptions:
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for API request."""
-        result = {}
+        result: dict[str, Any] = {}
 
         if self.url:
             result["url"] = self.url
@@ -495,7 +495,7 @@ class VideoOptions:
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for API request."""
-        result = {
+        result: dict[str, Any] = {
             "url": self.url,
             "format": self.format,
             "width": self.width,
@@ -593,7 +593,7 @@ class BatchOptions:
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for API request."""
-        result = {
+        result: dict[str, Any] = {
             "urls": self.urls,
             "format": self.format,
             "width": self.width,

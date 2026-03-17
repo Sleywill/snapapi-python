@@ -280,7 +280,7 @@ class SnapAPI:
         raw = self._request("POST", "/v1/screenshot", opts.to_dict())
 
         if storage is not None or webhook_url is not None or job_id is not None:
-            return json.loads(raw)
+            return dict(json.loads(raw))
         return raw
 
     def screenshot_to_storage(
@@ -1081,7 +1081,7 @@ class SnapAPI:
                 )
                 if attempt < self.max_retries and should_retry(parsed):
                     if hasattr(parsed, "retry_after"):
-                        wait = min(parsed.retry_after, 30.0)  # type: ignore[attr-defined]
+                        wait = min(parsed.retry_after, 30.0)
                     else:
                         wait = compute_backoff(attempt + 1, self.retry_delay)
                     attempt += 1

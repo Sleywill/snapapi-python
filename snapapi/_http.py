@@ -88,4 +88,4 @@ def should_retry(error: SnapAPIError) -> bool:
 def compute_backoff(attempt: int, base_delay: float) -> float:
     """Exponential backoff, capped at MAX_RETRY_DELAY."""
     delay = base_delay * (2 ** (attempt - 1))
-    return min(delay, MAX_RETRY_DELAY)
+    return float(min(delay, MAX_RETRY_DELAY))
