@@ -554,3 +554,30 @@ class TestAsyncNetworkErrors:
             with pytest.raises(SnapTimeoutError) as exc_info:
                 await snap.ping()
         assert exc_info.value.code == "TIMEOUT"
+
+
+# -- Async generate_pdf() alias -----------------------------------------------
+
+class TestAsyncGeneratePdf:
+    @respx.mock
+    async def test_returns_bytes(self):
+        respx.post(f"{BASE}/v1/screenshot").mock(
+            return_value=httpx.Response(200, content=b"%PDF-1.4", headers={"Content-Type": "application/pdf"})
+        )
+        async with AsyncSnapAPI(api_key="sk_test", max_retries=0) as snap:
+            result = await snap.generate_pdf(url="https://example.com")
+        assert isinstance(result, bytes)
+        assert result.startswith(b"%PDF")
+
+
+# -- Async generate_og_image() alias ------------------------------------------
+
+class TestAsyncGenerateOgImage:
+    @respx.mock
+    async def test_returns_bytes(self):
+        respx.post(f"{BASE}/v1/screenshot").mock(
+            return_value=httpx.Response(200, content=b"\x89PNG\r\n", headers={"Content-Type": "image/png"})
+        )
+        async with AsyncSnapAPI(api_key="sk_test", max_retries=0) as snap:
+            result = await snap.generate_og_image(url="https://example.com")
+        assert isinstance(result, bytes)

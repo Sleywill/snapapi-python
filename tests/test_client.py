@@ -836,3 +836,100 @@ class TestNetworkErrors:
         err = SnapAPIError("test message", "TEST_CODE", 418)
         assert "SnapAPIError" in repr(err)
         assert "418" in repr(err)
+
+
+# -- generate_pdf() alias -----------------------------------------------------
+
+class TestGeneratePdf:
+    @respx.mock
+    def test_returns_bytes(self):
+        respx.post(f"{BASE}/v1/screenshot").mock(return_value=binary_response(b"%PDF-1.4"))
+        snap = make_client()
+        result = snap.generate_pdf(url="https://example.com")
+        assert isinstance(result, bytes)
+        assert result.startswith(b"%PDF")
+
+    def test_raises_without_input(self):
+        snap = make_client()
+        with pytest.raises(ValueError, match="url or html"):
+            snap.generate_pdf()
+
+
+# -- generate_og_image() alias ------------------------------------------------
+
+class TestGenerateOgImage:
+    @respx.mock
+    def test_returns_bytes(self):
+        respx.post(f"{BASE}/v1/screenshot").mock(return_value=binary_response())
+        snap = make_client()
+        result = snap.generate_og_image(url="https://example.com")
+        assert isinstance(result, bytes)
+
+
+# -- Retry logic tests --------------------------------------------------------
+
+class TestRetryLogic:
+    @respx.mock
+    def test_retries_on_429_and_succeeds(self):
+        route = respx.get(f"{BASE}/v1/ping")
+        route.side_effect = [
+            httpx.Response(429, json={"message": "Too many requests"}, headers={"Retry-After": "0"}),
+            httpx.Response(200, json={"status": "ok", "timestamp": 123}),
+        ]
+        snap = SnapAPI(api_key="sk_test", max_retries=2, retry_delay=0.001)
+        result = snap.ping()
+        assert result["status"] == "ok"
+        assert route.call_count == 2
+
+    @respx.mock
+    def test_retries_on_500_and_succeeds(self):
+        route = respx.get(f"{BASE}/v1/ping")
+        route.side_effect = [
+            httpx.Response(500, json={"message": "Internal error"}),
+            httpx.Response(200, json={"status": "ok", "timestamp": 123}),
+        ]
+        snap = SnapAPI(api_key="sk_test", max_retries=2, retry_delay=0.001)
+        result = snap.ping()
+        assert result["status"] == "ok"
+        assert route.call_count == 2
+
+    @respx.mock
+    def test_does_not_retry_on_401(self):
+        route = respx.get(f"{BASE}/v1/ping")
+        route.mock(return_value=httpx.Response(401, json={"message": "Unauthorized"}))
+        snap = SnapAPI(api_key="sk_bad", max_retries=3, retry_delay=0.001)
+        with pytest.raises(AuthenticationError):
+            snap.ping()
+        assert route.call_count == 1
+
+    @respx.mock
+    def test_does_not_retry_on_422(self):
+        route = respx.post(f"{BASE}/v1/screenshot")
+        route.mock(return_value=httpx.Response(
+            422, json={"message": "Validation failed", "fields": {"url": "required"}}
+        ))
+        snap = SnapAPI(api_key="sk_test", max_retries=3, retry_delay=0.001)
+        with pytest.raises(ValidationError):
+            snap.screenshot(url="https://example.com")
+        assert route.call_count == 1
+
+    @respx.mock
+    def test_exhausts_retries_and_raises(self):
+        route = respx.get(f"{BASE}/v1/ping")
+        route.mock(return_value=httpx.Response(500, json={"message": "Server error"}))
+        snap = SnapAPI(api_key="sk_test", max_retries=2, retry_delay=0.001)
+        with pytest.raises(SnapAPIError):
+            snap.ping()
+        assert route.call_count == 3  # initial + 2 retries
+
+    @respx.mock
+    def test_retries_network_error_and_succeeds(self):
+        route = respx.get(f"{BASE}/v1/ping")
+        route.side_effect = [
+            httpx.ConnectError("Connection refused"),
+            httpx.Response(200, json={"status": "ok", "timestamp": 123}),
+        ]
+        snap = SnapAPI(api_key="sk_test", max_retries=2, retry_delay=0.001)
+        result = snap.ping()
+        assert result["status"] == "ok"
+        assert route.call_count == 2

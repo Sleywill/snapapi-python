@@ -442,6 +442,62 @@ class SnapAPI:
         Path(filepath).write_bytes(result)
         return result
 
+    def generate_pdf(
+        self,
+        url: str | None = None,
+        html: str | None = None,
+        **kwargs: Any,
+    ) -> bytes:
+        """Generate a PDF from a URL or HTML string.
+
+        Alias for :meth:`pdf` -- provided for parity with the documented
+        SDK interface.
+
+        Args:
+            url: Page URL to convert.
+            html: Raw HTML string to convert.
+            **kwargs: Additional PDF options (page_size, landscape, etc.).
+
+        Returns:
+            Raw PDF bytes.
+
+        Example::
+
+            pdf_bytes = snap.generate_pdf(url="https://example.com")
+            with open("output.pdf", "wb") as f:
+                f.write(pdf_bytes)
+        """
+        return self.pdf(url=url, html=html, **kwargs)
+
+    def generate_og_image(
+        self,
+        url: str,
+        format: str = "png",
+        width: int = 1200,
+        height: int = 630,
+    ) -> bytes:
+        """Generate an Open Graph image for a URL.
+
+        Alias for :meth:`og_image` -- provided for parity with the documented
+        SDK interface.
+
+        Args:
+            url: URL to generate an OG image for.
+            format: Output format (default: ``'png'``).
+            width: Image width (default: 1200).
+            height: Image height (default: 630).
+
+        Returns:
+            Raw image bytes.
+
+        Example::
+
+            og = snap.generate_og_image(url="https://example.com")
+            with open("og.png", "wb") as f:
+                f.write(og)
+        """
+        return self.og_image(url=url, format=format, width=width, height=height)
+
     # -- Scrape ------------------------------------------------------------------
 
     def scrape(

@@ -363,6 +363,49 @@ class AsyncSnapAPI:
         Path(filepath).write_bytes(result)
         return result
 
+    async def generate_pdf(
+        self,
+        url: str | None = None,
+        html: str | None = None,
+        **kwargs: Any,
+    ) -> bytes:
+        """Generate a PDF asynchronously.
+
+        Alias for :meth:`pdf` -- provided for parity with the documented
+        SDK interface.
+
+        Args:
+            url: Page URL to convert.
+            html: Raw HTML string to convert.
+            **kwargs: Additional PDF options.
+
+        Returns:
+            Raw PDF bytes.
+        """
+        return await self.pdf(url=url, html=html, **kwargs)
+
+    async def generate_og_image(
+        self,
+        url: str,
+        format: str = "png",
+        width: int = 1200,
+        height: int = 630,
+    ) -> bytes:
+        """Generate an OG image asynchronously.
+
+        Alias for :meth:`og_image`.
+
+        Args:
+            url: URL to generate an OG image for.
+            format: Output format (default: ``'png'``).
+            width: Image width (default: 1200).
+            height: Image height (default: 630).
+
+        Returns:
+            Raw image bytes.
+        """
+        return await self.og_image(url=url, format=format, width=width, height=height)
+
     # -- Scrape ------------------------------------------------------------------
 
     async def scrape(

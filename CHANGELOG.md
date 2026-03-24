@@ -2,6 +2,20 @@
 
 All notable changes to the `snapapi` Python SDK are documented here.
 
+## [3.2.0] — 2026-03-23
+
+### Added
+- `SnapAPI.generate_pdf()` / `AsyncSnapAPI.generate_pdf()` -- alias for `pdf()` matching the documented SDK interface.
+- `SnapAPI.generate_og_image()` / `AsyncSnapAPI.generate_og_image()` -- alias for `og_image()` matching the documented SDK interface.
+- `py.typed` marker file (PEP 561) for downstream type checking support.
+- Retry logic unit tests: verifies retry on 429, 500, and network errors; verifies no retry on 401 and 422; verifies retry exhaustion behavior.
+- Async alias tests for `generate_pdf()` and `generate_og_image()`.
+- Test count increased from 115 to 122.
+
+### Changed
+- Version bumped to 3.2.0.
+- User-Agent string updated to `snapapi-python/3.2.0`.
+
 ## [3.1.0] — 2026-03-17
 
 ### Added

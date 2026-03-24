@@ -318,9 +318,21 @@ with open("og.png", "wb") as f:
     f.write(og_data)
 ```
 
+### Method aliases
+
+For convenience and parity with other SDKs, these aliases are available:
+
+```python
+# Equivalent to snap.pdf(url=...)
+pdf_bytes = snap.generate_pdf(url="https://example.com")
+
+# Equivalent to snap.og_image(url=...)
+og_bytes = snap.generate_og_image(url="https://example.com")
+```
+
 ### Analyze (AI)
 
-Analyze webpages with an LLM — bring your own API key.
+Analyze webpages with an LLM -- bring your own API key.
 
 ```python
 import os
