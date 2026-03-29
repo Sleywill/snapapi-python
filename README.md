@@ -3,6 +3,7 @@
 Official Python SDK for [SnapAPI](https://snapapi.pics) — the lightning-fast screenshot, scrape, extract, PDF, video, and AI-analyze API.
 
 [![PyPI version](https://img.shields.io/pypi/v/snapapi-client?label=pypi&color=3776ab)](https://pypi.org/project/snapapi-client/)
+[![PyPI downloads](https://img.shields.io/pypi/dm/snapapi-client?label=downloads&color=3776ab)](https://pypi.org/project/snapapi-client/)
 [![CI](https://github.com/Sleywill/snapapi-python/actions/workflows/ci.yml/badge.svg)](https://github.com/Sleywill/snapapi-python/actions)
 [![Python 3.8+](https://img.shields.io/badge/Python-3.8%2B-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
@@ -644,6 +645,20 @@ def check_for_changes(url: str, previous_hash: str) -> str:
 - Python 3.8+
 - `httpx >= 0.24.0`
 
+## Contributing
+
+Contributions are welcome! Please read [CONTRIBUTING.md](./CONTRIBUTING.md) before submitting a PR.
+
+```bash
+git clone https://github.com/Sleywill/snapapi-python.git
+cd snapapi-python
+pip install -e ".[dev]"
+pytest
+```
+
+Found a bug? [Open an issue](https://github.com/Sleywill/snapapi-python/issues/new?template=bug_report.md).
+Have an idea? [Request a feature](https://github.com/Sleywill/snapapi-python/issues/new?template=feature_request.md).
+
 ## License
 
 MIT — see [LICENSE](./LICENSE).
@@ -652,5 +667,7 @@ MIT — see [LICENSE](./LICENSE).
 
 - [SnapAPI Website](https://snapapi.pics)
 - [API Documentation](https://snapapi.pics/docs)
+- [PyPI Package](https://pypi.org/project/snapapi-client/)
+- [GitHub Repository](https://github.com/Sleywill/snapapi-python)
 - [GitHub Issues](https://github.com/Sleywill/snapapi-python/issues)
 - [Changelog](./CHANGELOG.md)

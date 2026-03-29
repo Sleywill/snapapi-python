@@ -2,6 +2,16 @@
 
 All notable changes to the `snapapi` Python SDK are documented here.
 
+## [3.3.0] — 2026-03-28
+
+### Added
+- Timeout retry tests for both sync and async clients: verifies retry on timeout succeeds, and verifies exhaustion throws `TimeoutError`.
+- `examples/` directory with 6 real-world usage examples: basic screenshot, async batch processing, scrape and extract, error handling, PDF generation, and video recording.
+
+### Changed
+- Version bumped to 3.3.0.
+- User-Agent string updated to `snapapi-python/3.3.0`.
+
 ## [3.2.0] — 2026-03-23
 
 ### Added

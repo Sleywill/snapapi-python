@@ -29,10 +29,11 @@ jobs:
         run: ruff check snapapi/
 
       - name: Format check (ruff format)
-        run: ruff format --check snapapi/ || true
+        run: ruff format --check snapapi/
 
       - name: Type check (mypy)
-        run: mypy snapapi/ || true
+        run: mypy snapapi/
+        continue-on-error: true
 
       - name: Run tests with coverage
         run: pytest --cov=snapapi --cov-report=term-missing

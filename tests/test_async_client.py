@@ -242,6 +242,24 @@ class TestAsyncRetryLogic:
         assert call_count == 3
 
     @respx.mock
+    async def test_retries_on_timeout_and_succeeds(self):
+        call_count = 0
+
+        def handler(request):
+            nonlocal call_count
+            call_count += 1
+            if call_count < 2:
+                raise httpx.TimeoutException("Timed out")
+            return json_response({"status": "ok", "timestamp": 999})
+
+        respx.get(f"{BASE}/v1/ping").mock(side_effect=handler)
+
+        async with AsyncSnapAPI(api_key="sk_test", max_retries=3, retry_delay=0.0) as snap:
+            result = await snap.ping()
+        assert result["status"] == "ok"
+        assert call_count == 2
+
+    @respx.mock
     async def test_does_not_retry_on_401(self):
         call_count = 0
 

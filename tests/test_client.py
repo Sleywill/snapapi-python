@@ -933,3 +933,24 @@ class TestRetryLogic:
         result = snap.ping()
         assert result["status"] == "ok"
         assert route.call_count == 2
+
+    @respx.mock
+    def test_retries_timeout_error_and_succeeds(self):
+        route = respx.get(f"{BASE}/v1/ping")
+        route.side_effect = [
+            httpx.TimeoutException("Timed out"),
+            httpx.Response(200, json={"status": "ok", "timestamp": 123}),
+        ]
+        snap = SnapAPI(api_key="sk_test", max_retries=2, retry_delay=0.001)
+        result = snap.ping()
+        assert result["status"] == "ok"
+        assert route.call_count == 2
+
+    @respx.mock
+    def test_exhausts_timeout_retries_and_raises(self):
+        route = respx.get(f"{BASE}/v1/ping")
+        route.mock(side_effect=httpx.TimeoutException("Timed out"))
+        snap = SnapAPI(api_key="sk_test", max_retries=1, retry_delay=0.001)
+        with pytest.raises(SnapTimeoutError):
+            snap.ping()
+        assert route.call_count == 2  # initial + 1 retry
